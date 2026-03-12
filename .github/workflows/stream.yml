@@ -1,46 +1,37 @@
-name: YouTube Stream Test
+name: YouTube Live Stream
 
+# Tento trigger umožňuje manuálne spustenie streamu priamo z prostredia GitHub (v záložke Actions)
 on:
   workflow_dispatch:
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
 
     steps:
-      - name: Install ffmpeg and curl
+      - name: Inštalácia FFmpeg a wget
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg curl
+          sudo apt install -y ffmpeg wget
 
-      - name: Download test video from Dropbox
+      - name: Stiahnutie videa z Dropboxu
         run: |
-          echo "Downloading test video..."
-          # PRIAMY LINK pre FFmpeg
-          curl -L -o test.mp4 "https://dl.dropboxusercontent.com/s/vwezqye3nsm8r9w9qri1i/test.mp4"
+          # Používame tvoj odkaz, ale s dl=1 na konci pre priame stiahnutie súboru
+          wget -O video.mp4 "https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=z1dq0dwk&dl=1"
 
-      - name: Validate video
+      - name: Streamovanie na YouTube
+        env:
+          # Streamovací kľúč sa ťahá z GitHub Secrets
+          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          echo "Checking if test.mp4 is valid MP4..."
-          file_type=$(file --mime-type -b test.mp4)
-          echo "Detected file type: $file_type"
-          if [ "$file_type" != "video/mp4" ]; then
-            echo "Error: test.mp4 is not a valid MP4!"
-            exit 1
-          fi
-          ls -lh test.mp4
-
-      - name: Start streaming to YouTube (main server)
-        run: |
-          ffmpeg -re -stream_loop -1 -i test.mp4 \
-          -c:v libx264 -preset veryfast -pix_fmt yuv420p \
-          -c:a aac -b:a 128k \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}"
-
-      - name: Start streaming to YouTube (backup server)
-        run: |
-          ffmpeg -re -stream_loop -1 -i test.mp4 \
-          -c:v libx264 -preset veryfast -pix_fmt yuv420p \
-          -c:a aac -b:a 128k \
-          -f flv "rtmp://b.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}?backup=1"
+          # Vypíšeme informáciu o štarte
+          echo "Spúšťam stream na YouTube..."
+          
+          # FFmpeg príkaz na streamovanie
+          # -re : číta vstup v reálnom čase (veľmi dôležité pre stream)
+          # -stream_loop -1 : video sa bude opakovať donekonečna (zmaž toto, ak chceš prehrať video len raz)
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 50 \
+          -c:a aac -b:a 160k -ar 44100 \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
