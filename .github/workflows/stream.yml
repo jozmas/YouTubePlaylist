@@ -8,37 +8,26 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inštalácia FFmpeg a nástrojov
+      - name: Inštalácia FFmpeg
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg curl megatools
+          sudo apt install -y ffmpeg curl
 
-      - name: Stiahnutie videa z Mega.nz
+      - name: Stiahnutie videa z GitHubu
         run: |
-          # Použitie megadl, čo je najľahší klient pre priame odkazy
-          URL="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
+          # Sťahujeme priamo z tvojho repozitára my-images
+          # Používame "raw" odkaz, aby sme dostali skutočný súbor, nie HTML náhľad
+          URL="https://github.com/jozmas/my-images/raw/main/test.mp4"
           
-          echo "Sťahujem video z Mega.nz..."
-          # megadl stiahne súbor pod jeho originálnym názvom
-          megadl "$URL" || { echo "Sťahovanie zlyhalo"; exit 1; }
+          echo "Sťahujem testovacie video z GitHubu..."
+          curl -L "$URL" -o video.mp4
           
-          # Dynamické nájdenie stiahnutého video súboru a premenovanie
-          VIDEO_FILE=$(ls | grep -Ei "\.(mp4|mkv|avi|mov|flv)$" | head -n 1)
-          
-          if [ -z "$VIDEO_FILE" ]; then
-            echo "CHYBA: Žiadne video sa nestiahlo!"
-            ls -la
-            exit 1
-          fi
-          
-          mv "$VIDEO_FILE" video.mp4
-          
-          # Overenie veľkosti (musí byť viac ako 0)
+          # Kontrola veľkosti
           SIZE=$(stat -c%s video.mp4)
           echo "Veľkosť súboru: $SIZE bajtov"
           
-          if [ "$SIZE" -lt 1000000 ]; then
-            echo "CHYBA: Súbor je príliš malý alebo poškodený!"
+          if [ "$SIZE" -lt 1000 ]; then
+            echo "CHYBA: Súbor je príliš malý, pravdepodobne sa nestiahol správne."
             exit 1
           fi
 
@@ -53,10 +42,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Pridaný -analyzeduration a -probesize pre lepšiu detekciu moov atomu pri štarte
-          ffmpeg -re -stream_loop -1 \
-          -analyzeduration 100M -probesize 100M \
-          -i video.mp4 \
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
