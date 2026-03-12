@@ -15,26 +15,12 @@ jobs:
 
       - name: Stiahnutie videa z GitHubu
         run: |
-          # Používame správnu RAW URL pre tvoj súbor test.mp4
           URL="https://raw.githubusercontent.com/jozmas/my-images/main/test.mp4"
-          
           echo "Sťahujem video test.mp4 z GitHubu..."
-          # Sťahujeme súbor priamo pod názvom test.mp4
           curl -L "$URL" -o test.mp4
           
-          # Kontrola, či súbor existuje a akú má veľkosť
           if [ ! -f test.mp4 ]; then
-            echo "CHYBA: Súbor test.mp4 nebol nájdený po stiahnutí!"
-            exit 1
-          fi
-
-          SIZE=$(stat -c%s test.mp4)
-          echo "Veľkosť súboru: $SIZE bajtov"
-          
-          if [ "$SIZE" -lt 10000 ]; then
-            echo "CHYBA: Súbor je podozrivo malý (pravdepodobne HTML chyba namiesto videa)."
-            # Výpis obsahu pre diagnostiku, ak by to bol HTML text
-            cat test.mp4 | head -n 5
+            echo "CHYBA: Súbor test.mp4 nebol nájdený!"
             exit 1
           fi
 
@@ -47,10 +33,12 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube so súborom test.mp4..."
+          echo "Spúšťam stream na YouTube..."
           
-          # OPRAVA: Premenná -i musí smerovať na test.mp4
+          # Optimalizované parametre pre stabilitu:
+          # -r 30 (vynútených 30 FPS)
+          # -g 60 (Keyframe interval každé 2 sekundy - dôležité pre YouTube)
           ffmpeg -re -stream_loop -1 -i test.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
+          -pix_fmt yuv420p -r 30 -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
