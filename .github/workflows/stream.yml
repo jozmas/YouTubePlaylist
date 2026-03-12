@@ -33,18 +33,19 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Video + Generované ticho)..."
+          echo "Spúšťam stream na YouTube (Simulácia nastavení OBS)..."
           
-          # OPRAVA PRE YOUTUBE:
-          # 1. Pridané -flvflags no_duration_filesize, pretože pri live streame dĺžka neexistuje.
-          # 2. Pridané -ar 44100 a -ac 2 pre audio, aby sme dodržali štandard.
-          # 3. Pridané -f flv s explicitným RTMP cieľom.
+          # ZMENY PODĽA OBS ŠTANDARDU:
+          # 1. -profile:v main -level 4.1: Najkompatibilnejší profil pre YouTube.
+          # 2. -bf 0: Vypnutie B-frames pre nižšiu latenciu a lepšiu stabilitu (YouTube ich niekedy "nemá rád" pri štarte).
+          # 3. -threads 0: Automatické priradenie jadier pre lepší výkon.
+          # 4. Používame opäť rtmp:// (niektoré staršie účty majú s RTMPS na port 443 problém).
           
           ffmpeg -re -stream_loop -1 -i test.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -map 0:v:0 -map 1:a:0 \
-          -c:v libx264 -preset superfast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k \
-          -pix_fmt yuv420p -r 30 -g 60 \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
+          -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
           -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest \
-          -flvflags no_duration_filesize \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
