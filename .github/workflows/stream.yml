@@ -15,36 +15,45 @@ jobs:
 
       - name: Stiahnutie videa z Mega.nz
         run: |
-          # Odkaz v úvodzovkách, aby shell neinterpretoval '#' ako komentár
+          # Odkaz na súbor (musí byť v úvodzovkách)
           MEGA_LINK="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
           
           echo "Sťahujem video z Mega.nz..."
           
-          # megadl niekedy premenuje súbor podľa názvu na Mega. My ho chceme ako video.mp4
-          # Skúsime najprv zistiť názov súboru alebo ho vynútiť
+          # Stiahnutie súboru do aktuálneho priečinka
           megadl "$MEGA_LINK" --path .
           
-          # Nájdeme stiahnutý súbor (keďže megadl ignoruje --path pre názov súboru niekedy) 
-          # a premenujeme ho na video.mp4
-          STIAHNUTY_SUBOR=$(ls | grep -v "stream.yml" | grep -E ".mp4|.mkv|.avi|.mov" | head -n 1)
+          # Počkáme sekundu na zápis na disk
+          sleep 2
+          
+          # Hľadáme stiahnutý súbor (megadl zachováva pôvodný názov z Mega)
+          # Odfiltrujeme stream.yml a hľadáme mediálne prípony
+          STIAHNUTY_SUBOR=$(ls | grep -Ei "\.(mp4|mkv|avi|mov)$" | head -n 1)
           
           if [ -z "$STIAHNUTY_SUBOR" ]; then
-            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Mega.nz."
+            echo "-------------------------------------------------------"
+            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Mega.nz!"
+            echo "Skontroluj, či je odkaz stále platný."
+            echo "Obsah priečinka pre kontrolu:"
             ls -R
+            echo "-------------------------------------------------------"
             exit 1
           fi
           
+          echo "Našiel sa súbor: $STIAHNUTY_SUBOR. Premenovávam na video.mp4"
           mv "$STIAHNUTY_SUBOR" video.mp4
           
-          # Kontrola integrity
+          # Kontrola veľkosti a integrity
+          FILE_SIZE=$(du -m video.mp4 | cut -f1)
+          echo "Veľkosť súboru: ${FILE_SIZE} MB"
+          
+          if [ "$FILE_SIZE" -lt 1 ]; then
+            echo "CHYBA: Stiahnutý súbor je prázdny alebo príliš malý!"
+            exit 1
+          fi
+          
           FILE_TYPE=$(file video.mp4)
           echo "Detegovaný typ: $FILE_TYPE"
-          ls -lh video.mp4
-          
-          if [[ "$FILE_TYPE" != *"ISO Media"* && "$FILE_TYPE" != *"MP4"* ]]; then
-             echo "CHYBA: Súbor nie je platné video."
-             exit 1
-          fi
 
       - name: Streamovanie na YouTube
         env:
@@ -57,7 +66,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Pridané logovanie a kontrola pred štartom
+          # FFmpeg nastavený na RTMP vysielanie
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
