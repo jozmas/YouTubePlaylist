@@ -1,4 +1,4 @@
-name: YouTube Stream
+name: YouTube Stream with Backup
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360  # max 6 hodín
 
     steps:
       - name: Install tools
@@ -18,9 +18,16 @@ jobs:
         run: |
           wget -O video.mp4 "https://drive.google.com/uc?export=download&id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN"
 
-      - name: Start streaming
+      - name: Start streaming (main server)
         run: |
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -pix_fmt yuv420p \
           -c:a aac -b:a 128k \
-          -f flv rtmp://a.rtmp.youtube.com/live2/YOUR_STREAM_KEY
+          -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}"
+
+      - name: Start streaming (backup server)
+        run: |
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          -c:v libx264 -preset veryfast -pix_fmt yuv420p \
+          -c:a aac -b:a 128k \
+          -f flv "rtmp://b.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}?backup=1"
