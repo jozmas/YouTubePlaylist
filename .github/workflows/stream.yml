@@ -4,7 +4,6 @@ on:
   workflow_dispatch:
   schedule:
     # Tento cron výraz spustí stream každý deň o 19:00 UTC
-    # Formát: 'minúta hodina deň mesiac deň_v_týždni'
     - cron: '0 19 * * *'
 
 jobs:
@@ -12,26 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inštalácia FFmpeg
+      - name: Kontrola prostredia
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg curl
+          ffmpeg -version
+          curl --version
 
       - name: Stiahnutie videa z Google Drive
         run: |
-          # ID súboru z vášho odkazu
           FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
-          echo "Sťahujem veľké video z Google Drive (s ošetrením varovania pred vírusmi)..."
+          echo "Sťahujem video z Google Drive..."
           
-          # 1. Získanie potvrdzujúceho tokenu pre veľké súbory
+          # Získanie potvrdenia pre veľké súbory
           CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
           
-          # 2. Stiahnutie samotného súboru pomocou získaného tokenu
+          # Samotné stiahnutie
           curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
           
-          # Kontrola, či súbor existuje a má veľkosť (či to nie je len prázdny dokument alebo HTML)
           if [ ! -s video.mp4 ] || grep -q "<!DOCTYPE html>" video.mp4; then
-            echo "CHYBA: Súbor video.mp4 sa nepodarilo stiahnuť správne (pravdepodobne stále sťahuje HTML stránku)!"
+            echo "CHYBA: Súbor sa nepodarilo stiahnuť (stiahlo sa HTML alebo prázdny súbor)!"
             exit 1
           fi
           
@@ -47,14 +44,14 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Video z Drive + Generované ticho)..."
+          echo "Spúšťam stream..."
           
-          # Nastavenia optimalizované pre YouTube (podľa OBS štandardu)
+          # Optimalizované pre rýchly štart a stabilitu
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
-          -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest \
+          -c:a aac -b:a 128k -ar 44100 -ac 2 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
