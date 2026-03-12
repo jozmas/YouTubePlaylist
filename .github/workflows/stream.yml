@@ -8,45 +8,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inštalácia FFmpeg a Python nástrojov
+      - name: Inštalácia FFmpeg a Mega CMD
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg python3-pip
-          pip3 install mega.py
+          sudo apt install -y ffmpeg curl
+          # Inštalácia oficiálneho Mega CMD klienta pre Ubuntu
+          RELEASENAME=$(lsb_release -cs)
+          curl -fsSL https://mega.nz/linux/repo/xUbuntu_22.04/amd64/Release.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/mega.gpg
+          echo "deb https://mega.nz/linux/repo/xUbuntu_22.04/amd64/ ./" | sudo tee /etc/apt/sources.list.d/megacmd.list
+          sudo apt update
+          sudo apt install -y megacmd
 
       - name: Stiahnutie videa z Mega.nz
         run: |
-          python3 - <<EOF
-          from mega import Mega
-          import os
+          URL="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
+          echo "Sťahujem video cez Mega CMD..."
+          
+          # megadl stiahne súbor priamo
+          mega-get "$URL" video.mp4
+          
+          # Čakanie na dokončenie zápisu
+          sleep 5
+          
+          # Ak megacmd stiahlo súbor do priečinka (niekedy ignoruje názov cieľa)
+          if [ ! -f video.mp4 ]; then
+            STIAHNUTE=$(ls | grep -Ei "\.(mp4|mkv|avi|mov)$" | head -n 1)
+            if [ ! -z "$STIAHNUTE" ]; then
+              mv "$STIAHNUTE" video.mp4
+            fi
+          fi
 
-          mega = Mega()
-          # Prihlásenie ako anonymný používateľ
-          m = mega.login()
-          
-          url = "https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
-          print(f"Sťahujem video z: {url}")
-          
-          # Stiahnutie súboru
-          file_path = m.download_url(url)
-          
-          # Premenovanie na video.mp4 pre FFmpeg
-          if os.path.exists(file_path):
-              os.rename(file_path, 'video.mp4')
-              print(f"Súbor úspešne stiahnutý a premenovaný na video.mp4")
-          else:
-              print("Chyba: Súbor sa nepodarilo stiahnuť.")
-              exit(1)
-          EOF
-
-      - name: Kontrola stiahnutého súboru
+      - name: Overenie integrity súboru
         run: |
           if [ ! -f video.mp4 ]; then
-            echo "CHYBA: Súbor video.mp4 neexistuje!"
+            echo "CHYBA: Súbor sa nepodarilo stiahnuť!"
+            ls -R
             exit 1
           fi
-          FILE_SIZE=$(ls -lh video.mp4)
-          echo "Veľkosť súboru: $FILE_SIZE"
+          
+          SIZE=$(du -m video.mp4 | cut -f1)
+          echo "Veľkosť súboru: ${SIZE} MB"
+          
+          if [ "$SIZE" -lt 5 ]; then
+            echo "CHYBA: Súbor je príliš malý (pravdepodobne len HTML alebo chyba sťahovania)."
+            exit 1
+          fi
+          
           file video.mp4
 
       - name: Streamovanie na YouTube
@@ -60,7 +67,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # FFmpeg nastavený na RTMP vysielanie
+          # Optimalizácia pre streamovanie z cloudu
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
