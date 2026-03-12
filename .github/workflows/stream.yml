@@ -21,15 +21,22 @@ jobs:
         run: |
           # ID súboru z vášho odkazu
           FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
-          echo "Sťahujem veľké video z Google Drive..."
+          echo "Sťahujem veľké video z Google Drive (s ošetrením varovania pred vírusmi)..."
           
-          # Použitie exportného odkazu pre priame stiahnutie
-          curl -L "https://docs.google.com/uc?export=download&id=${FILE_ID}" -o video.mp4
+          # 1. Získanie potvrdzujúceho tokenu pre veľké súbory
+          CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
           
-          if [ ! -s video.mp4 ]; then
-            echo "CHYBA: Súbor video.mp4 sa nepodarilo stiahnuť alebo je prázdny!"
+          # 2. Stiahnutie samotného súboru pomocou získaného tokenu
+          curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
+          
+          # Kontrola, či súbor existuje a má veľkosť (či to nie je len prázdny dokument alebo HTML)
+          if [ ! -s video.mp4 ] || grep -q "<!DOCTYPE html>" video.mp4; then
+            echo "CHYBA: Súbor video.mp4 sa nepodarilo stiahnuť správne (pravdepodobne stále sťahuje HTML stránku)!"
             exit 1
           fi
+          
+          echo "Súbor úspešne stiahnutý. Veľkosť:"
+          du -sh video.mp4
 
       - name: Streamovanie na YouTube
         env:
