@@ -15,20 +15,28 @@ jobs:
 
       - name: Stiahnutie videa z Dropboxu
         run: |
-          # Používame priamy odkaz cez dl.dropboxusercontent.com pre stabilitu
-          curl -L -o video.mp4 "https://dl.dropboxusercontent.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz"
+          # Používame modifikovaný odkaz s raw=1, čo je často najúspešnejšia cesta pre Dropbox v cloude
+          curl -L -o video.mp4 "https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&raw=1"
           
-          # Overenie integrity súboru
-          FILE_TYPE=$(file video.mp4)
-          echo "Detegovaný typ: $FILE_TYPE"
+          # Diagnostika súboru
+          FILE_INFO=$(file video.mp4)
+          FILE_SIZE=$(ls -lh video.mp4 | awk '{print $5}')
+          echo "Detegovaný typ: $FILE_INFO"
+          echo "Veľkosť súboru: $FILE_SIZE"
           
-          if [[ "$FILE_TYPE" != *"ISO Media"* && "$FILE_TYPE" != *"MP4"* ]]; then
-            echo "CHYBA: Súbor nie je platné video (pravdepodobne HTML block)."
+          # Ak má súbor menej ako 1MB alebo je to HTML, tak to zlyhalo
+          if [[ "$FILE_INFO" == *"HTML"* || "$FILE_INFO" == *"text"* ]]; then
+            echo "-------------------------------------------------------------------"
+            echo "CHYBA: Dropbox zablokoval priame sťahovanie!"
+            echo "GitHub Actions sťahuje HTML stránku namiesto videa."
+            echo "Riešenie: Nahraj video na Google Drive a použi Direct Download link."
+            echo "-------------------------------------------------------------------"
             exit 1
           fi
 
       - name: Streamovanie na YouTube
         env:
+          # Tu sa použije tvoj kľúč 43jr-3yv9-wscq-h0ay-1x55 z GitHub Secrets
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
@@ -38,7 +46,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Príkaz posiela stream na zadanú RTMP adresu s tvojím kľúčom
+          # FFmpeg posiela dáta na YouTube RTMP server
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
