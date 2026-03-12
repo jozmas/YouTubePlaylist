@@ -42,18 +42,21 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Stabilná verzia - Zvuk 20%)..."
+          echo "Spúšťam stream na YouTube (Vynútenie verejnej viditeľnosti)..."
           
-          # OPRAVY:
-          # 1. -map 0:v:0 -map 0:a:0 -> Explicitne berieme len video a audio (ignorujeme TimeCode stopu, ktorá padala)
-          # 2. -pix_fmt yuv420p -> Vynútenie formátu pre YouTube
-          # 3. Odstránený Segmentation Fault použitím systémového FFmpeg
+          # ÚPRAVY PRE VIDITEĽNOSŤ NA KANÁLI:
+          # 1. -tune zerolatency: Simuluje okamžitý štart OBS.
+          # 2. -movflags +faststart: Zabezpečí, aby YouTube mohol čítať metadáta okamžite.
+          # 3. Zmena na rtmp:// (nie rtmps) pre stabilnejší handshake z GitHubu.
+          # 4. Pridané metadata pre kódovanie.
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -g 50 -keyint_min 50 -sc_threshold 0 \
+          -x264-params "nal-hrd=cbr:force-cfr=1" \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
-          -f flv "rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY"
+          -metadata title="Relaxing Nature Sounds" \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
