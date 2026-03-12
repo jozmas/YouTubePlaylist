@@ -1,7 +1,9 @@
 name: YouTube Stream with Backup
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:        # manuálne spustenie
+  schedule:
+    - cron: '0 19 * * *'   # každý deň o 19:00 UTC
 
 jobs:
   stream:
