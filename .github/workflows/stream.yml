@@ -1,47 +1,45 @@
-name: YouTube Stream from Dropbox
+name: YouTube Stream Test
 
 on:
-  workflow_dispatch:        # manuálne spustenie
-  schedule:
-    - cron: '0 19 * * *'   # každý deň o 19:00 UTC
+  workflow_dispatch:
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # max 6 hodín
+    timeout-minutes: 60
 
     steps:
       - name: Install ffmpeg
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg
+          sudo apt install -y ffmpeg curl
 
-      - name: Download video from Dropbox
+      - name: Download test video from Dropbox
         run: |
-          echo "Downloading video from Dropbox..."
-          curl -L -o video.mp4 "https://dl.dropboxusercontent.com/s/lnezxmekrohf1k2g7jd2z/stream.mp4"
+          echo "Downloading test video..."
+          curl -L -o test.mp4 "https://dl.dropboxusercontent.com/s/vwezqye3nsm8r9w9qri1i/test.mp4"
 
-      - name: Validate downloaded video
+      - name: Validate video
         run: |
-          echo "Checking if video.mp4 is valid MP4..."
-          file_type=$(file --mime-type -b video.mp4)
+          echo "Checking if test.mp4 is valid MP4..."
+          file_type=$(file --mime-type -b test.mp4)
           echo "Detected file type: $file_type"
           if [ "$file_type" != "video/mp4" ]; then
-            echo "Error: downloaded file is not a valid MP4!"
+            echo "Error: test.mp4 is not a valid MP4!"
             exit 1
           fi
-          ls -lh video.mp4
+          ls -lh test.mp4
 
       - name: Start streaming (main server)
         run: |
-          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          ffmpeg -re -stream_loop -1 -i test.mp4 \
           -c:v libx264 -preset veryfast -pix_fmt yuv420p \
           -c:a aac -b:a 128k \
           -f flv "rtmp://a.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}"
 
       - name: Start streaming (backup server)
         run: |
-          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          ffmpeg -re -stream_loop -1 -i test.mp4 \
           -c:v libx264 -preset veryfast -pix_fmt yuv420p \
           -c:a aac -b:a 128k \
           -f flv "rtmp://b.rtmp.youtube.com/live2/${{ secrets.YT_STREAM_KEY }}?backup=1"
