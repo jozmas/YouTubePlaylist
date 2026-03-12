@@ -11,42 +11,51 @@ jobs:
       - name: Inštalácia FFmpeg a nástrojov
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg curl
+          sudo apt install -y ffmpeg curl grep sed
 
       - name: Stiahnutie videa z Google Drive
         run: |
-          # Používame Direct Download link pre Google Drive s tvojím ID súboru
-          # Parameter -c (continue) a -L (follow redirects) zabezpečia správne stiahnutie
-          curl -L "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn" -o video.mp4
+          # ID tvojho súboru
+          FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
           
-          # Diagnostika súboru
-          FILE_INFO=$(file video.mp4)
-          FILE_SIZE=$(ls -lh video.mp4 | awk '{print $5}')
-          echo "Detegovaný typ: $FILE_INFO"
-          echo "Veľkosť súboru: $FILE_SIZE"
+          echo "Sťahujem video z Google Drive..."
           
-          # Ak je súbor príliš malý (napr. Google Drive varovanie o vírusoch pri veľkých súboroch),
-          # skúsime stiahnuť súbor s potvrdením (confirm kód)
-          if [[ "$FILE_INFO" == *"HTML"* ]]; then
-            echo "Detegovaná HTML stránka, pokúšam sa o alternatívne stiahnutie s potvrdením..."
-            CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
-            curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn&confirm=$CONFIRM" -o video.mp4
+          # 1. Získanie potvrdzovacieho tokenu (pre veľké súbory)
+          CONFIRM=$(curl -sL "https://docs.google.com/uc?export=download&id=${FILE_ID}" | grep -o 'confirm=[^&"]*' | sed 's/confirm=//')
+          
+          if [ -z "$CONFIRM" ]; then
+            # Ak nie je potrebný confirm token, stiahni priamo
+            curl -L "https://docs.google.com/uc?export=download&id=${FILE_ID}" -o video.mp4
+          else
+            # Ak je potrebný confirm token, použi ho
+            curl -L "https://docs.google.com/uc?export=download&id=${FILE_ID}&confirm=${CONFIRM}" -o video.mp4
+          fi
+          
+          # Kontrola typu súboru
+          FILE_TYPE=$(file video.mp4)
+          echo "Detegovaný typ: $FILE_TYPE"
+          
+          if [[ "$FILE_TYPE" != *"ISO Media"* && "$FILE_TYPE" != *"MP4"* ]]; then
+            echo "CHYBA: Sťahovanie zlyhalo. Google Drive pravdepodobne vyžaduje prihlásenie alebo je odkaz nesprávny."
+            ls -lh video.mp4
+            exit 1
           fi
 
       - name: Streamovanie na YouTube
         env:
-          # Použije sa tvoj kľúč uložený v GitHub Secrets
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY chýba v GitHub Secrets!"
+            echo "CHYBA: YOUTUBE_STREAM_KEY nie je nastavený v GitHub Secrets!"
             exit 1
           fi
 
           echo "Spúšťam stream na YouTube..."
           
-          # FFmpeg posiela dáta na YouTube RTMP server
+          # Parametre optimalizované pre YouTube Live
+          # -re (read at native frame rate)
+          # -stream_loop -1 (nekonečná slučka)
           ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
+          -c:v libx264 -preset veryfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
+          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
