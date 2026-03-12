@@ -35,16 +35,16 @@ jobs:
 
           echo "Spúšťam stream na YouTube (Video + Generované ticho)..."
           
-          # Vysvetlenie zmien:
-          # 1. -f lavfi -i anullsrc ... vytvára nekonečné ticho
-          # 2. -map 0:v:0 vyberie video z test.mp4
-          # 3. -map 1:a:0 vyberie audio z anullsrc
-          # 4. -shortest zabezpečí, že audio sa ukončí spolu s videom v každej slučke
+          # OPRAVA PRE YOUTUBE:
+          # 1. Pridané -flvflags no_duration_filesize, pretože pri live streame dĺžka neexistuje.
+          # 2. Pridané -ar 44100 a -ac 2 pre audio, aby sme dodržali štandard.
+          # 3. Pridané -f flv s explicitným RTMP cieľom.
           
           ffmpeg -re -stream_loop -1 -i test.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset superfast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -r 30 -g 60 \
-          -c:a aac -b:a 128k -shortest \
+          -c:a aac -b:a 128k -ar 44100 -ac 2 -shortest \
+          -flvflags no_duration_filesize \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
