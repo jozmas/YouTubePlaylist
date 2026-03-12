@@ -15,21 +15,39 @@ jobs:
 
       - name: Stiahnutie videa z Mega.nz
         run: |
-          # Priamy odkaz na tvoj súbor
+          # Odkaz v úvodzovkách, aby shell neinterpretoval '#' ako komentár
           MEGA_LINK="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
           
           echo "Sťahujem video z Mega.nz..."
-          # megadl stiahne súbor a premenuje ho na video.mp4
-          megadl "$MEGA_LINK" --path video.mp4
           
-          # Kontrola integrity súboru (v logoch musíš vidieť ISO Media / MP4)
+          # megadl niekedy premenuje súbor podľa názvu na Mega. My ho chceme ako video.mp4
+          # Skúsime najprv zistiť názov súboru alebo ho vynútiť
+          megadl "$MEGA_LINK" --path .
+          
+          # Nájdeme stiahnutý súbor (keďže megadl ignoruje --path pre názov súboru niekedy) 
+          # a premenujeme ho na video.mp4
+          STIAHNUTY_SUBOR=$(ls | grep -v "stream.yml" | grep -E ".mp4|.mkv|.avi|.mov" | head -n 1)
+          
+          if [ -z "$STIAHNUTY_SUBOR" ]; then
+            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Mega.nz."
+            ls -R
+            exit 1
+          fi
+          
+          mv "$STIAHNUTY_SUBOR" video.mp4
+          
+          # Kontrola integrity
           FILE_TYPE=$(file video.mp4)
           echo "Detegovaný typ: $FILE_TYPE"
           ls -lh video.mp4
+          
+          if [[ "$FILE_TYPE" != *"ISO Media"* && "$FILE_TYPE" != *"MP4"* ]]; then
+             echo "CHYBA: Súbor nie je platné video."
+             exit 1
+          fi
 
       - name: Streamovanie na YouTube
         env:
-          # Uisti sa, že v GitHub Secrets máš kľúč: 43jr-3yv9-wscq-h0ay-1x55
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
@@ -39,8 +57,8 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # FFmpeg nastavený na RTMP prenos
+          # Pridané logovanie a kontrola pred štartom
           ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -c:v libx264 -preset veryfast -b:v 3500k -maxrate 3500k -bufsize 7000k \
-          -pix_fmt yuv420p -g 60 -c:a aac -b:a 128k -ar 44100 \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
