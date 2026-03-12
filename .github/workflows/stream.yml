@@ -3,7 +3,6 @@ name: YouTube Live Stream
 on:
   workflow_dispatch:
   schedule:
-    # Spustenie každý deň o 19:00 UTC
     - cron: '0 19 * * *'
 
 jobs:
@@ -11,34 +10,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout kódu
+        uses: actions/checkout@v4
+
       - name: Inštalácia FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Kontrola prostredia
-        run: |
-          ffmpeg -version
-          curl --version
-
       - name: Stiahnutie videa z Google Drive
         run: |
-          # ID vášho funkčného súboru na Google Drive
           FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
+          echo "Sťahujem video z Google Drive (377 MB, ID: $FILE_ID)..."
           
-          echo "Sťahujem video z Google Drive..."
+          # 1. Získanie potvrdzovacieho tokenu (Google Drive Virus Scan bypass)
+          # Skúšame získať kód 'confirm' z počiatočnej požiadavky
+          CONFIRM=$(curl -s -L -c /tmp/cookies "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
           
-          # 1. Získanie potvrdzovacieho kódu pre veľké súbory (obchádza vírusový sken Google)
-          CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
+          echo "Potvrdzovací kód: ${CONFIRM:-Nenašiel sa (skúšam priamy download)}"
+
+          # 2. Stiahnutie súboru
+          if [ -z "$CONFIRM" ]; then
+            # Ak sa kód nenašiel, skúsime to priamo (pre prípady, kedy Google token nevyžiada)
+            curl -L -b /tmp/cookies "https://docs.google.com/uc?export=download&id=${FILE_ID}" -o video.mp4
+          else
+            # Ak máme kód, použijeme ho na finálne stiahnutie
+            curl -L -b /tmp/cookies "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
+          fi
           
-          # 2. Stiahnutie samotného súboru pomocou získaného kódu a cookies
-          curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
-          
-          # Kontrola integrity - ak má súbor menej ako 1MB, stiahnutie zlyhalo
-          FILE_SIZE=$(stat -c%s "video.mp4")
-          if [ "$FILE_SIZE" -lt 1000000 ]; then
-            echo "CHYBA: Stiahnutý súbor je príliš malý ($FILE_SIZE bajtov)."
-            echo "Skontrolujte, či je video na Google Drive nastavené na: 'Každý, kto má odkaz'."
+          # Kontrola integrity: Google pri chybe vráti HTML stránku namiesto videa
+          if head -c 100 video.mp4 | grep -q "<html"; then
+            echo "CHYBA: Google Drive zamietol automatické stiahnutie (možný limit botov)."
+            echo "Prvých 500 znakov odpovede pre diagnostiku:"
+            head -c 500 video.mp4
             exit 1
           fi
           
@@ -56,7 +60,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Parametre simulujúce OBS (vysoká kompatibilita, stabilné audio)
+          # Optimalizované pre 377MB video a YouTube požiadavky na audio bitrate
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[audio_out]" \
