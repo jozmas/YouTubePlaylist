@@ -15,33 +15,31 @@ jobs:
 
       - name: Stiahnutie videa z Dropboxu
         run: |
-          # Použitie curl s nasledovaním presmerovaní (-L)
-          # V URL adrese je dôležité dl=1 pre priame sťahovanie
-          curl -L -o video.mp4 "https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=z1dq0dwk&dl=1"
+          # Používame priamy odkaz cez dl.dropboxusercontent.com pre stabilitu
+          curl -L -o video.mp4 "https://dl.dropboxusercontent.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz"
           
-          # Overenie stiahnutého súboru (výsledok uvidíš v GitHub Actions logu)
-          echo "Typ súboru:"
-          file video.mp4
-          echo "Veľkosť súboru:"
-          ls -lh video.mp4
+          # Overenie integrity súboru
+          FILE_TYPE=$(file video.mp4)
+          echo "Detegovaný typ: $FILE_TYPE"
+          
+          if [[ "$FILE_TYPE" != *"ISO Media"* && "$FILE_TYPE" != *"MP4"* ]]; then
+            echo "CHYBA: Súbor nie je platné video (pravdepodobne HTML block)."
+            exit 1
+          fi
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Kontrola, či kľúč existuje
           if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY nie je nastavený v GitHub Secrets!"
+            echo "CHYBA: YOUTUBE_STREAM_KEY chýba v GitHub Secrets!"
             exit 1
           fi
 
           echo "Spúšťam stream na YouTube..."
           
-          # FFmpeg s nastavením pre plynulé streamovanie
-          ffmpeg -re -stream_loop -1 \
-          -analyzeduration 2147483647 -probesize 2147483647 \
-          -i video.mp4 \
+          # Príkaz posiela stream na zadanú RTMP adresu s tvojím kľúčom
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -g 50 \
-          -c:a aac -b:a 128k -ar 44100 \
+          -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
