@@ -3,7 +3,7 @@ name: YouTube Live Stream
 on:
   workflow_dispatch:
   schedule:
-    # Tento cron výraz spustí stream každý deň o 19:00 UTC
+    # Spustenie každý deň o 19:00 UTC
     - cron: '0 19 * * *'
 
 jobs:
@@ -16,19 +16,17 @@ jobs:
           ffmpeg -version
           curl --version
 
-      - name: Stiahnutie videa z Google Drive
+      - name: Stiahnutie videa z Dropboxu
         run: |
-          FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
-          echo "Sťahujem video z Google Drive..."
+          # Pôvodný odkaz: https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=sw68njm4&dl=0
+          # Upravený odkaz pre priame stiahnutie (dl=1)
+          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=sw68njm4&dl=1"
           
-          # Získanie potvrdenia pre veľké súbory
-          CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
+          echo "Sťahujem video z Dropboxu..."
+          curl -L "$URL" -o video.mp4
           
-          # Samotné stiahnutie
-          curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
-          
-          if [ ! -s video.mp4 ] || grep -q "<!DOCTYPE html>" video.mp4; then
-            echo "CHYBA: Súbor sa nepodarilo stiahnuť (stiahlo sa HTML alebo prázdny súbor)!"
+          if [ ! -s video.mp4 ]; then
+            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Dropboxu!"
             exit 1
           fi
           
@@ -44,12 +42,16 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream..."
+          echo "Spúšťam stream na YouTube..."
           
-          # Optimalizované pre rýchly štart a stabilitu
+          # OPRAVA ZVUKU:
+          # Používame 'amix', aby sme zmiešali zvuk z videa (ak existuje) s generovaným tichom.
+          # To zaručí, že YouTube vždy dostane audio stream s bitrate 128k.
+          
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-          -map 0:v:0 -map 1:a:0 \
+          -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[audio_out]" \
+          -map 0:v:0 -map "[audio_out]" \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
