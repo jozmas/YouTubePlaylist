@@ -1,0 +1,22 @@
+name: YouTube Stream
+
+on:
+  workflow_dispatch:
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Install FFmpeg
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg
+
+      - name: Stream to YouTube
+        run: |
+          ffmpeg -re -stream_loop -1 -i https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4 \
+          -c:v libx264 -preset veryfast -pix_fmt yuv420p \
+          -c:a aac -b:a 128k \
+          -f flv rtmp://a.rtmp.youtube.com/live2/YOUR_STREAM_KEY
