@@ -15,8 +15,9 @@ jobs:
 
       - name: Inštalácia FFmpeg
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg curl
+          # Inštalujeme priamo bez zbytočného upgradu celého systému, aby sme ušetrili čas
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl
 
       - name: Stiahnutie videa
         run: |
@@ -49,7 +50,7 @@ jobs:
           
           # Úprava parametrov:
           # 1. -af "volume=0.2": Nastaví hlasitosť na 20% pôvodnej hodnoty.
-          # 2. Mapovanie 0:v a 0:a: Berieme obraz aj zvuk priamo zo zdrojového videa.
+          # 2. -max_interleave_delta 0: Pomáha predchádzať zaseknutiu pri dlhých streamoch.
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
@@ -57,4 +58,5 @@ jobs:
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
+          -max_interleave_delta 0 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
