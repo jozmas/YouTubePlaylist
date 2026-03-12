@@ -1,4 +1,4 @@
-name: YouTube Stream with Backup and Google Drive
+name: YouTube Stream with Backup and MEGA
 
 on:
   workflow_dispatch:        # manuálne spustenie
@@ -14,14 +14,12 @@ jobs:
       - name: Install tools
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg python3-pip
-          pip install gdown
+          sudo apt install -y ffmpeg megatools
 
-      - name: Download video from Google Drive
+      - name: Download video from MEGA
         run: |
-          echo "Downloading video from Google Drive..."
-          # Použiť len ID súboru, nie celý view link
-          gdown https://drive.google.com/uc?id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN -O video.mp4
+          echo "Downloading video from MEGA..."
+          megadl "https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU" --path ./video.mp4
 
       - name: Validate downloaded video
         run: |
