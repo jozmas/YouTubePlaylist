@@ -1,4 +1,4 @@
-name: YouTube Stream with Backup and MEGA
+name: YouTube Stream from Dropbox
 
 on:
   workflow_dispatch:        # manuálne spustenie
@@ -11,15 +11,15 @@ jobs:
     timeout-minutes: 360  # max 6 hodín
 
     steps:
-      - name: Install tools
+      - name: Install ffmpeg
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg megatools
+          sudo apt install -y ffmpeg
 
-      - name: Download video from MEGA
+      - name: Download video from Dropbox
         run: |
-          echo "Downloading video from MEGA..."
-          megadl "https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU" --path ./video.mp4
+          echo "Downloading video from Dropbox..."
+          curl -L -o video.mp4 "https://dl.dropboxusercontent.com/s/lnezxmekrohf1k2g7jd2z/stream.mp4"
 
       - name: Validate downloaded video
         run: |
