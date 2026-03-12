@@ -17,14 +17,17 @@ jobs:
           sudo apt update
           sudo apt install -y ffmpeg curl
 
-      - name: Stiahnutie videa z GitHubu
+      - name: Stiahnutie videa z Google Drive
         run: |
-          URL="https://raw.githubusercontent.com/jozmas/my-images/main/test.mp4"
-          echo "Sťahujem video test.mp4 z GitHubu..."
-          curl -L "$URL" -o test.mp4
+          # ID súboru z vášho odkazu
+          FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
+          echo "Sťahujem veľké video z Google Drive..."
           
-          if [ ! -f test.mp4 ]; then
-            echo "CHYBA: Súbor test.mp4 nebol nájdený!"
+          # Použitie exportného odkazu pre priame stiahnutie
+          curl -L "https://docs.google.com/uc?export=download&id=${FILE_ID}" -o video.mp4
+          
+          if [ ! -s video.mp4 ]; then
+            echo "CHYBA: Súbor video.mp4 sa nepodarilo stiahnuť alebo je prázdny!"
             exit 1
           fi
 
@@ -37,14 +40,10 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Simulácia nastavení OBS)..."
+          echo "Spúšťam stream na YouTube (Video z Drive + Generované ticho)..."
           
-          # ZMENY PODĽA OBS ŠTANDARDU:
-          # 1. -profile:v main -level 4.1: Najkompatibilnejší profil pre YouTube.
-          # 2. -bf 0: Vypnutie B-frames pre nižšiu latenciu a lepšiu stabilitu.
-          # 3. -threads 0: Automatické priradenie jadier.
-          
-          ffmpeg -re -stream_loop -1 -i test.mp4 \
+          # Nastavenia optimalizované pre YouTube (podľa OBS štandardu)
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
