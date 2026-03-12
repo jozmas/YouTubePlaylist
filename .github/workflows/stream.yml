@@ -43,19 +43,19 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Vynútenie viditeľnosti pre verejnosť)..."
+          echo "Spúšťam stream na YouTube (Hlasitosť 20%, Vynútenie živého vysielania)..."
           
-          # Úpravy pre maximálnu kompatibilitu s YouTube algoritmom:
-          # 1. -tune zerolatency: Napodobňuje správanie OBS (okamžité vysielanie).
-          # 2. -af "volume=0.2": Ponechaná hlasitosť na 20%.
-          # 3. Zmenená URL na rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY - odstránenie zbytočných parametrov.
+          # Úpravy pre automatické spustenie bez tlačidla "Go Live":
+          # 1. -af "volume=0.2": Nastavená hlasitosť na 20%.
+          # 2. -x264-params "nal-hrd=cbr": Vynútenie konštantného toku pre YouTube Live.
+          # 3. -flvflags no_duration_filesize: Odstraňuje metadáta, ktoré niekedy blokujú štart.
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
           -max_interleave_delta 0 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          -f flv -flvflags no_duration_filesize "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
