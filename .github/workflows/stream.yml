@@ -18,31 +18,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Stiahnutie videa z Google Drive
+      - name: Stiahnutie videa
         run: |
-          FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
-          echo "Sťahujem video z Google Drive (377 MB, ID: $FILE_ID)..."
+          # Používame Dropbox odkaz, ktorý si poslal skôr (upravený na priame sťahovanie dl=1)
+          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
           
-          # 1. Získanie potvrdzovacieho tokenu (Google Drive Virus Scan bypass)
-          # Skúšame získať kód 'confirm' z počiatočnej požiadavky
-          CONFIRM=$(curl -s -L -c /tmp/cookies "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
+          echo "Sťahujem video z Dropboxu (377 MB)..."
+          curl -L "$URL" -o video.mp4
           
-          echo "Potvrdzovací kód: ${CONFIRM:-Nenašiel sa (skúšam priamy download)}"
-
-          # 2. Stiahnutie súboru
-          if [ -z "$CONFIRM" ]; then
-            # Ak sa kód nenašiel, skúsime to priamo (pre prípady, kedy Google token nevyžiada)
-            curl -L -b /tmp/cookies "https://docs.google.com/uc?export=download&id=${FILE_ID}" -o video.mp4
-          else
-            # Ak máme kód, použijeme ho na finálne stiahnutie
-            curl -L -b /tmp/cookies "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
-          fi
-          
-          # Kontrola integrity: Google pri chybe vráti HTML stránku namiesto videa
-          if head -c 100 video.mp4 | grep -q "<html"; then
-            echo "CHYBA: Google Drive zamietol automatické stiahnutie (možný limit botov)."
-            echo "Prvých 500 znakov odpovede pre diagnostiku:"
-            head -c 500 video.mp4
+          # Kontrola, či súbor existuje a má rozumnú veľkosť
+          FILE_SIZE=$(stat -c%s "video.mp4")
+          if [ "$FILE_SIZE" -lt 10000000 ]; then
+            echo "CHYBA: Súbor je príliš malý ($FILE_SIZE bajtov). Sťahovanie zlyhalo."
             exit 1
           fi
           
@@ -60,7 +47,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Optimalizované pre 377MB video a YouTube požiadavky na audio bitrate
+          # Streamovacie parametre pre stabilitu
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[audio_out]" \
