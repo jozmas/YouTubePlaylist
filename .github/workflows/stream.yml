@@ -18,9 +18,8 @@ jobs:
 
       - name: Stiahnutie videa z Dropboxu
         run: |
-          # Pôvodný odkaz: https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=sw68njm4&dl=0
-          # Upravený odkaz pre priame stiahnutie (dl=1)
-          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=sw68njm4&dl=1"
+          # Aktuálny odkaz z vašej správy
+          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
           
           echo "Sťahujem video z Dropboxu..."
           curl -L "$URL" -o video.mp4
@@ -44,9 +43,8 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # OPRAVA ZVUKU:
-          # Používame 'amix', aby sme zmiešali zvuk z videa (ak existuje) s generovaným tichom.
-          # To zaručí, že YouTube vždy dostane audio stream s bitrate 128k.
+          # Zmiešavame audio z videa s tichom pre stabilitu bitrate
+          # Pridaný príznak -flvflags no_duration_filesize pre lepšiu kompatibilitu s YT
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
@@ -56,4 +54,4 @@ jobs:
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          -f flv -flvflags no_duration_filesize "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
