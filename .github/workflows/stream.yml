@@ -13,10 +13,16 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
 
-      - name: Inštalácia FFmpeg
+      - name: Rýchla inštalácia FFmpeg (Static Binary)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg curl
+          # Namiesto pomalého apt-get install použijeme statickú binárku, ktorá je pripravená hneď
+          echo "Sťahujem statický FFmpeg..."
+          wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+          tar -xJf ffmpeg-release-amd64-static.tar.xz
+          # Presunieme binárku do pracovného priečinka
+          mv ffmpeg-*-amd64-static/ffmpeg ./ffmpeg
+          chmod +x ./ffmpeg
+          echo "FFmpeg je pripravený."
 
       - name: Stiahnutie videa
         run: |
@@ -30,9 +36,7 @@ jobs:
             echo "CHYBA: Súbor je príliš malý. Sťahovanie zlyhalo."
             exit 1
           fi
-          
-          echo "Súbor úspešne stiahnutý. Veľkosť:"
-          du -sh video.mp4
+          echo "Video stiahnuté."
 
       - name: Streamovanie na YouTube
         env:
@@ -43,14 +47,10 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Použitie RTMPS ako v OBS)..."
+          echo "Spúšťam stream na YouTube (RTMPS + OBS simulácia)..."
           
-          # Úpravy pre RTMPS a stabilitu:
-          # 1. Zmenená URL na rtmps://a.rtmp.youtube.com:443/live2/
-          # 2. Pridané -threads 0 pre lepšiu efektivitu šifrovania.
-          # 3. Ponechané overené parametre z OBS (zerolatency, keyint).
-          
-          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          # Používame ./ffmpeg (stiahnutú statickú binárku)
+          ./ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
           -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
