@@ -13,10 +13,11 @@ jobs:
           sudo apt update
           sudo apt install -y ffmpeg curl
 
-      - name: Stiahnutie videa z Dropboxu
+      - name: Stiahnutie videa z Google Drive
         run: |
-          # Používame modifikovaný odkaz s raw=1, čo je často najúspešnejšia cesta pre Dropbox v cloude
-          curl -L -o video.mp4 "https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&raw=1"
+          # Používame Direct Download link pre Google Drive s tvojím ID súboru
+          # Parameter -c (continue) a -L (follow redirects) zabezpečia správne stiahnutie
+          curl -L "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn" -o video.mp4
           
           # Diagnostika súboru
           FILE_INFO=$(file video.mp4)
@@ -24,19 +25,17 @@ jobs:
           echo "Detegovaný typ: $FILE_INFO"
           echo "Veľkosť súboru: $FILE_SIZE"
           
-          # Ak má súbor menej ako 1MB alebo je to HTML, tak to zlyhalo
-          if [[ "$FILE_INFO" == *"HTML"* || "$FILE_INFO" == *"text"* ]]; then
-            echo "-------------------------------------------------------------------"
-            echo "CHYBA: Dropbox zablokoval priame sťahovanie!"
-            echo "GitHub Actions sťahuje HTML stránku namiesto videa."
-            echo "Riešenie: Nahraj video na Google Drive a použi Direct Download link."
-            echo "-------------------------------------------------------------------"
-            exit 1
+          # Ak je súbor príliš malý (napr. Google Drive varovanie o vírusoch pri veľkých súboroch),
+          # skúsime stiahnuť súbor s potvrdením (confirm kód)
+          if [[ "$FILE_INFO" == *"HTML"* ]]; then
+            echo "Detegovaná HTML stránka, pokúšam sa o alternatívne stiahnutie s potvrdením..."
+            CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
+            curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&id=1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn&confirm=$CONFIRM" -o video.mp4
           fi
 
       - name: Streamovanie na YouTube
         env:
-          # Tu sa použije tvoj kľúč 43jr-3yv9-wscq-h0ay-1x55 z GitHub Secrets
+          # Použije sa tvoj kľúč uložený v GitHub Secrets
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
