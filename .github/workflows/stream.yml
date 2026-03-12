@@ -13,16 +13,11 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
 
-      - name: Rýchla inštalácia FFmpeg (Static Binary)
+      - name: Inštalácia FFmpeg
         run: |
-          # Namiesto pomalého apt-get install použijeme statickú binárku, ktorá je pripravená hneď
-          echo "Sťahujem statický FFmpeg..."
-          wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
-          tar -xJf ffmpeg-release-amd64-static.tar.xz
-          # Presunieme binárku do pracovného priečinka
-          mv ffmpeg-*-amd64-static/ffmpeg ./ffmpeg
-          chmod +x ./ffmpeg
-          echo "FFmpeg je pripravený."
+          # Použijeme systémový FFmpeg, ktorý je pre toto prostredie najstabilnejší
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl
 
       - name: Stiahnutie videa
         run: |
@@ -47,15 +42,18 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (RTMPS + OBS simulácia)..."
+          echo "Spúšťam stream na YouTube (Stabilná verzia - Zvuk 20%)..."
           
-          # Používame ./ffmpeg (stiahnutú statickú binárku)
-          ./ffmpeg -re -stream_loop -1 -i video.mp4 \
+          # OPRAVY:
+          # 1. -map 0:v:0 -map 0:a:0 -> Explicitne berieme len video a audio (ignorujeme TimeCode stopu, ktorá padala)
+          # 2. -pix_fmt yuv420p -> Vynútenie formátu pre YouTube
+          # 3. Odstránený Segmentation Fault použitím systémového FFmpeg
+          
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          -map 0:v:0 -map 0:a:0 \
           -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
-          -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
-          -x264-params "nal-hrd=cbr:force-cfr=1:keyint=60:min-keyint=60" \
+          -g 50 -keyint_min 50 -sc_threshold 0 \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
-          -threads 0 \
           -f flv "rtmps://a.rtmp.youtube.com:443/live2/$YOUTUBE_KEY"
