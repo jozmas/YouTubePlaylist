@@ -33,11 +33,17 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (s generovaným tichým audiom)..."
+          echo "Spúšťam stream na YouTube (Video + Generované ticho)..."
           
-          # Pridávame -f lavfi -i anullsrc na vygenerovanie tichej stopy
-          # Parameter -shortest zabezpečí, že audio sa prispôsobí dĺžke videa v každej slučke
-          ffmpeg -re -stream_loop -1 -i test.mp4 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+          # Vysvetlenie zmien:
+          # 1. -f lavfi -i anullsrc ... vytvára nekonečné ticho
+          # 2. -map 0:v:0 vyberie video z test.mp4
+          # 3. -map 1:a:0 vyberie audio z anullsrc
+          # 4. -shortest zabezpečí, že audio sa ukončí spolu s videom v každej slučke
+          
+          ffmpeg -re -stream_loop -1 -i test.mp4 \
+          -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+          -map 0:v:0 -map 1:a:0 \
           -c:v libx264 -preset superfast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k \
           -pix_fmt yuv420p -r 30 -g 60 \
           -c:a aac -b:a 128k -shortest \
