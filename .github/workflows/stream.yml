@@ -1,4 +1,4 @@
-name: YouTube Stream with Backup and Google Drive Validation
+name: YouTube Stream with Backup and Google Drive
 
 on:
   workflow_dispatch:        # manuálne spustenie
@@ -8,7 +8,7 @@ on:
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360  # max 6 hodín
 
     steps:
       - name: Install tools
@@ -19,6 +19,7 @@ jobs:
 
       - name: Download video from Google Drive
         run: |
+          echo "Downloading video from Google Drive..."
           gdown https://drive.google.com/uc?id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN -O video.mp4
 
       - name: Validate downloaded video
