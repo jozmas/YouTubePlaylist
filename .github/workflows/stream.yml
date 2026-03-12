@@ -1,4 +1,4 @@
-name: YouTube Stream with Backup and Google Drive
+name: YouTube Stream with Backup and Google Drive Validation
 
 on:
   workflow_dispatch:        # manuálne spustenie
@@ -8,7 +8,7 @@ on:
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360  # max 6 hodín
+    timeout-minutes: 360
 
     steps:
       - name: Install tools
@@ -20,7 +20,17 @@ jobs:
       - name: Download video from Google Drive
         run: |
           gdown https://drive.google.com/uc?id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN -O video.mp4
-          ls -lh video.mp4   # overenie, že súbor existuje
+
+      - name: Validate downloaded video
+        run: |
+          echo "Checking if video.mp4 is valid MP4..."
+          file_type=$(file --mime-type -b video.mp4)
+          echo "Detected file type: $file_type"
+          if [ "$file_type" != "video/mp4" ]; then
+            echo "Error: downloaded file is not a valid MP4!"
+            exit 1
+          fi
+          ls -lh video.mp4
 
       - name: Start streaming (main server)
         run: |
