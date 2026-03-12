@@ -49,7 +49,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube so súborom test.mp4..."
           
-          # Teraz FFmpeg používa správny názov súboru: test.mp4
+          # OPRAVA: Premenná -i musí smerovať na test.mp4
           ffmpeg -re -stream_loop -1 -i test.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
