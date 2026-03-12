@@ -20,7 +20,7 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          # Používame Dropbox odkaz, ktorý si poslal skôr (upravený na priame sťahovanie dl=1)
+          # Používame Dropbox odkaz (upravený na priame sťahovanie dl=1)
           URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
           
           echo "Sťahujem video z Dropboxu (377 MB)..."
@@ -45,15 +45,11 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube..."
+          echo "Spúšťam stream na YouTube (Simulácia OBS)..."
           
-          # Streamovacie parametre pre stabilitu
+          # FFmpeg nastavenia vyladené tak, aby presne kopírovali správanie OBS
           ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
-          -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[audio_out]" \
-          -map 0:v:0 -map "[audio_out]" \
-          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
-          -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
+          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -pix_fmt yuv420p -g 60 -keyint_min 60 -x264-params "nal-hrd=cbr" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
-          -f flv -flvflags no_duration_filesize "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
