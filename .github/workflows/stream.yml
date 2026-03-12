@@ -20,6 +20,7 @@ jobs:
       - name: Download video from Google Drive
         run: |
           gdown https://drive.google.com/uc?id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN -O video.mp4
+          ls -lh video.mp4   # overenie, že súbor existuje
 
       - name: Start streaming (main server)
         run: |
