@@ -8,52 +8,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inštalácia FFmpeg a Megatools
+      - name: Inštalácia FFmpeg a Python nástrojov
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg megatools
+          sudo apt install -y ffmpeg python3-pip
+          pip3 install mega.py
 
       - name: Stiahnutie videa z Mega.nz
         run: |
-          # Odkaz na súbor (musí byť v úvodzovkách)
-          MEGA_LINK="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
+          python3 - <<EOF
+          from mega import Mega
+          import os
+
+          mega = Mega()
+          # Prihlásenie ako anonymný používateľ
+          m = mega.login()
           
-          echo "Sťahujem video z Mega.nz..."
+          url = "https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
+          print(f"Sťahujem video z: {url}")
           
-          # Stiahnutie súboru do aktuálneho priečinka
-          megadl "$MEGA_LINK" --path .
+          # Stiahnutie súboru
+          file_path = m.download_url(url)
           
-          # Počkáme sekundu na zápis na disk
-          sleep 2
-          
-          # Hľadáme stiahnutý súbor (megadl zachováva pôvodný názov z Mega)
-          # Odfiltrujeme stream.yml a hľadáme mediálne prípony
-          STIAHNUTY_SUBOR=$(ls | grep -Ei "\.(mp4|mkv|avi|mov)$" | head -n 1)
-          
-          if [ -z "$STIAHNUTY_SUBOR" ]; then
-            echo "-------------------------------------------------------"
-            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Mega.nz!"
-            echo "Skontroluj, či je odkaz stále platný."
-            echo "Obsah priečinka pre kontrolu:"
-            ls -R
-            echo "-------------------------------------------------------"
+          # Premenovanie na video.mp4 pre FFmpeg
+          if os.path.exists(file_path):
+              os.rename(file_path, 'video.mp4')
+              print(f"Súbor úspešne stiahnutý a premenovaný na video.mp4")
+          else:
+              print("Chyba: Súbor sa nepodarilo stiahnuť.")
+              exit(1)
+          EOF
+
+      - name: Kontrola stiahnutého súboru
+        run: |
+          if [ ! -f video.mp4 ]; then
+            echo "CHYBA: Súbor video.mp4 neexistuje!"
             exit 1
           fi
-          
-          echo "Našiel sa súbor: $STIAHNUTY_SUBOR. Premenovávam na video.mp4"
-          mv "$STIAHNUTY_SUBOR" video.mp4
-          
-          # Kontrola veľkosti a integrity
-          FILE_SIZE=$(du -m video.mp4 | cut -f1)
-          echo "Veľkosť súboru: ${FILE_SIZE} MB"
-          
-          if [ "$FILE_SIZE" -lt 1 ]; then
-            echo "CHYBA: Stiahnutý súbor je prázdny alebo príliš malý!"
-            exit 1
-          fi
-          
-          FILE_TYPE=$(file video.mp4)
-          echo "Detegovaný typ: $FILE_TYPE"
+          FILE_SIZE=$(ls -lh video.mp4)
+          echo "Veľkosť súboru: $FILE_SIZE"
+          file video.mp4
 
       - name: Streamovanie na YouTube
         env:
