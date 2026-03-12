@@ -8,67 +8,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Inštalácia FFmpeg a Mega CMD
+      - name: Inštalácia FFmpeg a nástrojov
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg curl
-          # Inštalácia oficiálneho Mega CMD klienta pre Ubuntu
-          RELEASENAME=$(lsb_release -cs)
-          curl -fsSL https://mega.nz/linux/repo/xUbuntu_22.04/amd64/Release.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/mega.gpg
-          echo "deb https://mega.nz/linux/repo/xUbuntu_22.04/amd64/ ./" | sudo tee /etc/apt/sources.list.d/megacmd.list
-          sudo apt update
-          sudo apt install -y megacmd
+          sudo apt install -y ffmpeg curl megatools
 
       - name: Stiahnutie videa z Mega.nz
         run: |
+          # Použitie megadl, čo je najľahší klient pre priame odkazy
           URL="https://mega.nz/file/4lF02CIQ#LngN-QNggUSnI0mgBXv1-_TIp-UtoXQF3oztRq6IbcU"
-          echo "Sťahujem video cez Mega CMD..."
           
-          # megadl stiahne súbor priamo
-          mega-get "$URL" video.mp4
+          echo "Sťahujem video z Mega.nz..."
+          # megadl stiahne súbor pod jeho originálnym názvom
+          megadl "$URL" || { echo "Sťahovanie zlyhalo"; exit 1; }
           
-          # Čakanie na dokončenie zápisu
-          sleep 5
+          # Dynamické nájdenie stiahnutého video súboru a premenovanie
+          VIDEO_FILE=$(ls | grep -Ei "\.(mp4|mkv|avi|mov|flv)$" | head -n 1)
           
-          # Ak megacmd stiahlo súbor do priečinka (niekedy ignoruje názov cieľa)
-          if [ ! -f video.mp4 ]; then
-            STIAHNUTE=$(ls | grep -Ei "\.(mp4|mkv|avi|mov)$" | head -n 1)
-            if [ ! -z "$STIAHNUTE" ]; then
-              mv "$STIAHNUTE" video.mp4
-            fi
-          fi
-
-      - name: Overenie integrity súboru
-        run: |
-          if [ ! -f video.mp4 ]; then
-            echo "CHYBA: Súbor sa nepodarilo stiahnuť!"
-            ls -R
+          if [ -z "$VIDEO_FILE" ]; then
+            echo "CHYBA: Žiadne video sa nestiahlo!"
+            ls -la
             exit 1
           fi
           
-          SIZE=$(du -m video.mp4 | cut -f1)
-          echo "Veľkosť súboru: ${SIZE} MB"
+          mv "$VIDEO_FILE" video.mp4
           
-          if [ "$SIZE" -lt 5 ]; then
-            echo "CHYBA: Súbor je príliš malý (pravdepodobne len HTML alebo chyba sťahovania)."
+          # Overenie veľkosti (musí byť viac ako 0)
+          SIZE=$(stat -c%s video.mp4)
+          echo "Veľkosť súboru: $SIZE bajtov"
+          
+          if [ "$SIZE" -lt 1000000 ]; then
+            echo "CHYBA: Súbor je príliš malý alebo poškodený!"
             exit 1
           fi
-          
-          file video.mp4
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY nie je nastavený v GitHub Secrets!"
+            echo "CHYBA: YOUTUBE_STREAM_KEY chýba v GitHub Secrets!"
             exit 1
           fi
 
           echo "Spúšťam stream na YouTube..."
           
-          # Optimalizácia pre streamovanie z cloudu
-          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          # Pridaný -analyzeduration a -probesize pre lepšiu detekciu moov atomu pri štarte
+          ffmpeg -re -stream_loop -1 \
+          -analyzeduration 100M -probesize 100M \
+          -i video.mp4 \
           -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
           -pix_fmt yuv420p -g 50 -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
