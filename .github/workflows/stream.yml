@@ -16,16 +16,23 @@ jobs:
           ffmpeg -version
           curl --version
 
-      - name: Stiahnutie videa z Dropboxu
+      - name: Stiahnutie videa z Google Drive
         run: |
-          # Aktuálny odkaz z vašej správy
-          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
+          # ID súboru z vášho odkazu: 1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn
+          FILE_ID="1ZcsuqfFT-HcRg0luL8Q_4oHh_L1EhYEn"
           
-          echo "Sťahujem video z Dropboxu..."
-          curl -L "$URL" -o video.mp4
+          echo "Sťahujem video z Google Drive..."
           
-          if [ ! -s video.mp4 ]; then
-            echo "CHYBA: Súbor sa nepodarilo stiahnuť z Dropboxu!"
+          # 1. Získanie potvrdzovacieho kódu pre veľké súbory
+          CONFIRM=$(curl -sc /tmp/gcookie "https://docs.google.com/uc?export=download&id=${FILE_ID}" | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')
+          
+          # 2. Stiahnutie samotného súboru pomocou získaného kódu a cookies
+          curl -Lb /tmp/gcookie "https://docs.google.com/uc?export=download&confirm=${CONFIRM}&id=${FILE_ID}" -o video.mp4
+          
+          # Kontrola, či sa stiahlo skutočné video (nie chybová stránka)
+          FILE_SIZE=$(stat -c%s "video.mp4")
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "CHYBA: Súbor je príliš malý. Skontrolujte, či je video na Google Drive zdieľané pre 'všetkých s odkazom'."
             exit 1
           fi
           
@@ -43,9 +50,7 @@ jobs:
 
           echo "Spúšťam stream na YouTube..."
           
-          # Zmiešavame audio z videa s tichom pre stabilitu bitrate
-          # Pridaný príznak -flvflags no_duration_filesize pre lepšiu kompatibilitu s YT
-          
+          # Streamovacie parametre pre stabilitu a kvalitu
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
           -filter_complex "[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=2[audio_out]" \
