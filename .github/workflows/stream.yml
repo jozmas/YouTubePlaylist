@@ -33,12 +33,12 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube..."
+          echo "Spúšťam stream na YouTube (s generovaným tichým audiom)..."
           
-          # Optimalizované parametre pre stabilitu:
-          # -r 30 (vynútených 30 FPS)
-          # -g 60 (Keyframe interval každé 2 sekundy - dôležité pre YouTube)
-          ffmpeg -re -stream_loop -1 -i test.mp4 \
-          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -r 30 -g 60 -c:a aac -b:a 128k -ar 44100 \
+          # Pridávame -f lavfi -i anullsrc na vygenerovanie tichej stopy
+          # Parameter -shortest zabezpečí, že audio sa prispôsobí dĺžke videa v každej slučke
+          ffmpeg -re -stream_loop -1 -i test.mp4 -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
+          -c:v libx264 -preset superfast -tune zerolatency -b:v 2500k -maxrate 2500k -bufsize 5000k \
+          -pix_fmt yuv420p -r 30 -g 60 \
+          -c:a aac -b:a 128k -shortest \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
