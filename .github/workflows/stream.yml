@@ -15,8 +15,8 @@ jobs:
 
       - name: Inštalácia FFmpeg
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt update
+          sudo apt install -y ffmpeg curl
 
       - name: Stiahnutie videa
         run: |
@@ -26,7 +26,7 @@ jobs:
           echo "Sťahujem video z Dropboxu (377 MB)..."
           curl -L "$URL" -o video.mp4
           
-          # Kontrola, či súbor existuje a má rozumnú veľkosť
+          # Kontrola integrity súboru
           FILE_SIZE=$(stat -c%s "video.mp4")
           if [ "$FILE_SIZE" -lt 10000000 ]; then
             echo "CHYBA: Súbor je príliš malý ($FILE_SIZE bajtov). Sťahovanie zlyhalo."
@@ -45,11 +45,16 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Simulácia OBS)..."
+          echo "Spúšťam stream na YouTube (Zvuk nastavený na 20%)..."
           
-          # FFmpeg nastavenia vyladené tak, aby presne kopírovali správanie OBS
+          # Úprava parametrov:
+          # 1. -af "volume=0.2": Nastaví hlasitosť na 20% pôvodnej hodnoty.
+          # 2. Mapovanie 0:v a 0:a: Berieme obraz aj zvuk priamo zo zdrojového videa.
+          
           ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -pix_fmt yuv420p -g 60 -keyint_min 60 -x264-params "nal-hrd=cbr" \
+          -c:v libx264 -preset veryfast -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
+          -r 30 -g 60 -keyint_min 60 -sc_threshold 0 \
+          -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
