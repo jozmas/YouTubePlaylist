@@ -2,6 +2,10 @@ name: YouTube Live Stream
 
 on:
   workflow_dispatch:
+  schedule:
+    # Tento cron výraz spustí stream každý deň o 19:00 UTC
+    # Formát: 'minúta hodina deň mesiac deň_v_týždni'
+    - cron: '0 19 * * *'
 
 jobs:
   stream:
@@ -37,9 +41,8 @@ jobs:
           
           # ZMENY PODĽA OBS ŠTANDARDU:
           # 1. -profile:v main -level 4.1: Najkompatibilnejší profil pre YouTube.
-          # 2. -bf 0: Vypnutie B-frames pre nižšiu latenciu a lepšiu stabilitu (YouTube ich niekedy "nemá rád" pri štarte).
-          # 3. -threads 0: Automatické priradenie jadier pre lepší výkon.
-          # 4. Používame opäť rtmp:// (niektoré staršie účty majú s RTMPS na port 443 problém).
+          # 2. -bf 0: Vypnutie B-frames pre nižšiu latenciu a lepšiu stabilitu.
+          # 3. -threads 0: Automatické priradenie jadier.
           
           ffmpeg -re -stream_loop -1 -i test.mp4 \
           -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100 \
