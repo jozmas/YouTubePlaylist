@@ -9,14 +9,18 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Install FFmpeg
+      - name: Install tools
         run: |
           sudo apt update
-          sudo apt install -y ffmpeg
+          sudo apt install -y ffmpeg wget
 
-      - name: Stream to YouTube
+      - name: Download video from Google Drive
         run: |
-          ffmpeg -re -stream_loop -1 -i https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/720/Big_Buck_Bunny_720_10s_1MB.mp4 \
+          wget -O video.mp4 "https://drive.google.com/uc?export=download&id=1eC281UQ9hHzzX3Zy6zl_l4IiQo9e3rmN"
+
+      - name: Start streaming
+        run: |
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -pix_fmt yuv420p \
           -c:a aac -b:a 128k \
           -f flv rtmp://a.rtmp.youtube.com/live2/YOUR_STREAM_KEY
