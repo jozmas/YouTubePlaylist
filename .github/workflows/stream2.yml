@@ -1,0 +1,56 @@
+name: YouTube Live Stream - Kanal 2
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '3 20 * * *' # Spustí sa o 20:03 UTC (21:03 nášho času)
+
+jobs:
+  stream:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Checkout kódu
+        uses: actions/checkout@v4
+
+      - name: Inštalácia FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg curl
+
+      - name: Stiahnutie videa
+        run: |
+          # Použitý nový odkaz pre druhý kanál (wotl.mp4)
+          URL="https://www.dropbox.com/scl/fi/v0qc72kfh7xia29l0w6rt/wotl.mp4?rlkey=xzdhov04gvsnwtk9s3dz8b0uz&st=jrfudnlp&dl=1"
+          
+          echo "Sťahujem video pre druhý kanál..."
+          curl -L "$URL" -o video.mp4
+          
+          FILE_SIZE=$(stat -c%s "video.mp4")
+          if [ "$FILE_SIZE" -lt 10000000 ]; then
+            echo "CHYBA: Súbor je príliš malý."
+            exit 1
+          fi
+
+      - name: Streamovanie na YouTube (Kanal 2)
+        env:
+          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
+        run: |
+          if [ -z "$YOUTUBE_KEY" ]; then
+            echo "CHYBA: YOUTUBE_STREAM_KEY_2 chýba v GitHub Secrets!"
+            exit 1
+          fi
+
+          echo "Spúšťam stream na druhý kanál..."
+          
+          ffmpeg -re -stream_loop -1 -i video.mp4 \
+          -map 0:v:0 -map 0:a:0 \
+          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
+          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
+          -g 50 -keyint_min 50 -sc_threshold 0 \
+          -x264-params "nal-hrd=cbr:force-cfr=1" \
+          -af "volume=0.2" \
+          -c:a aac -b:a 128k -ar 44100 -ac 2 \
+          -metadata title="Relaxing Nature Sounds 2" \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
