@@ -3,11 +3,12 @@ name: YouTube Live Stream
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 19 * * *'
+    - cron: '3 19 * * *' # Spustí sa o 19:03 UTC (20:03 nášho času v zime)
 
 jobs:
   stream:
     runs-on: ubuntu-latest
+    timeout-minutes: 360 # Bezpečné ukončenie po 6 hodinách
 
     steps:
       - name: Checkout kódu
@@ -15,13 +16,12 @@ jobs:
 
       - name: Inštalácia FFmpeg
         run: |
-          # Použijeme systémový FFmpeg, ktorý je pre toto prostredie najstabilnejší
           sudo apt-get update
           sudo apt-get install -y ffmpeg curl
 
       - name: Stiahnutie videa
         run: |
-          URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=q6iwtp5t&dl=0"
+          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
           
           echo "Sťahujem video z Dropboxu (377 MB)..."
           curl -L "$URL" -o video.mp4
@@ -31,24 +31,18 @@ jobs:
             echo "CHYBA: Súbor je príliš malý. Sťahovanie zlyhalo."
             exit 1
           fi
-          echo "Video stiahnuté."
+          echo "Video úspešne stiahnuté (Veľkosť: $FILE_SIZE bajtov)."
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY chýba v GitHub Secrets!"
+            echo "CHYBA: YOUTUBE_STREAM_KEY nie je nastavený v Secrets!"
             exit 1
           fi
 
-          echo "Spúšťam stream na YouTube (Vynútenie verejnej viditeľnosti)..."
-          
-          # ÚPRAVY PRE VIDITEĽNOSŤ NA KANÁLI:
-          # 1. -tune zerolatency: Simuluje okamžitý štart OBS.
-          # 2. -movflags +faststart: Zabezpečí, aby YouTube mohol čítať metadáta okamžite.
-          # 3. Zmena na rtmp:// (nie rtmps) pre stabilnejší handshake z GitHubu.
-          # 4. Pridané metadata pre kódovanie.
+          echo "Spúšťam stream. Ak sú nastavenia YouTube kľúča správne, prenos bude VEREJNÝ."
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
