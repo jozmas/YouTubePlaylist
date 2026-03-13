@@ -21,7 +21,7 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          URL="https://www.dropbox.com/scl/fi/lnezxmekrohf1k2g7jd2z/stream.mp4?rlkey=cjns4lvwbfd2vo5m2uirzhikz&st=184iyk1p&dl=1"
+          URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=q6iwtp5t&dl=0"
           
           echo "Sťahujem video z Dropboxu (377 MB)..."
           curl -L "$URL" -o video.mp4
