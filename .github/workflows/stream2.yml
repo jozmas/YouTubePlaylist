@@ -22,7 +22,7 @@ jobs:
       - name: Stiahnutie videa
         run: |
           # Použitý nový odkaz pre druhý kanál (wotl.mp4)
-          URL="https://www.dropbox.com/scl/fi/2rphz9gkbowlorn1x1fmh/wotldaily.mp4?rlkey=0rt4o462oj412536epq8fepfd&st=o0a5113j&dl=1"
+          URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&dl=1"
           
           echo "Sťahujem video pre druhý kanál..."
           curl -L "$URL" -o video.mp4
