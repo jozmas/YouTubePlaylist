@@ -3,7 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '45 20 * * *' # Spustí sa o 20:45 UTC (21:45 v zime)
+    - cron: '58 21 * * *' # Spustí sa o 21:58 UTC (22:58 v zime, 21:58 v lete)
 
 jobs:
   stream:
@@ -21,17 +21,18 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          # Použitý nový odkaz pre druhý kanál (wotl.mp4)
+          # Použitý nový odkaz pre druhý kanál (wotldaily.mp4)
           URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&raw=1"
           
-          echo "Sťahujem video pre druhý kanál..."
+          echo "Sťahujem video pre Word of the Lord..."
           curl -L "$URL" -o video.mp4
           
           FILE_SIZE=$(stat -c%s "video.mp4")
           if [ "$FILE_SIZE" -lt 10000000 ]; then
-            echo "CHYBA: Súbor je príliš malý."
+            echo "CHYBA: Súbor je príliš malý. Skontrolujte Dropbox link."
             exit 1
           fi
+          echo "Video úspešne stiahnuté (Veľkosť: $FILE_SIZE bajtov)."
 
       - name: Streamovanie na YouTube (Kanal 2)
         env:
@@ -42,15 +43,21 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream na druhý kanál..."
+          echo "Spúšťam stabilizovaný stream s vyššou kvalitou..."
+          
+          # Optimalizácia pre plynulý chod:
+          # -b:v 5000k: Dostatočná rezerva pre 1080p
+          # -preset ultrafast: Šetrí výkon servera
+          # -bufsize 10000k: Ochrana proti sekaniu
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
-          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
-          -g 50 -keyint_min 50 -sc_threshold 0 \
+          -c:v libx264 -preset ultrafast -tune zerolatency \
+          -b:v 5000k -minrate 5000k -maxrate 5000k -bufsize 10000k \
+          -threads 0 -profile:v high -level 4.1 -bf 0 -pix_fmt yuv420p \
+          -g 60 -keyint_min 60 -sc_threshold 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
-          -metadata title="Relaxing Nature Sounds 2" \
+          -metadata title="Word of the Lord Daily" \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
