@@ -3,7 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '47 20 * * *' # Spustí sa o 20:47 UTC (21:47 nášho času v zime)
+    - cron: '05 22 * * *' # Spustí sa o 22:05 UTC (23:05 nášho času v zime)
 
 jobs:
   stream:
@@ -42,13 +42,19 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stream. Ak sú nastavenia YouTube kľúča správne, prenos bude VEREJNÝ."
+          echo "Spúšťam stabilizovaný stream s vylepšenou kvalitou..."
+          
+          # Aplikované vylepšenia pre plynulosť:
+          # -b:v 5000k: Zvýšená bitová rýchlosť pre 1080p stabilitu
+          # -preset ultrafast: Zníženie záťaže CPU na GitHub serveri
+          # -bufsize 10000k: Ochrana proti mikrosekaniu obrazu
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
-          -c:v libx264 -preset veryfast -tune zerolatency -b:v 3000k -maxrate 3000k -bufsize 6000k \
-          -profile:v main -level 4.1 -bf 0 -pix_fmt yuv420p \
-          -g 50 -keyint_min 50 -sc_threshold 0 \
+          -c:v libx264 -preset ultrafast -tune zerolatency \
+          -b:v 5000k -minrate 5000k -maxrate 5000k -bufsize 10000k \
+          -threads 0 -profile:v high -level 4.1 -bf 0 -pix_fmt yuv420p \
+          -g 60 -keyint_min 60 -sc_threshold 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
           -af "volume=0.2" \
           -c:a aac -b:a 128k -ar 44100 -ac 2 \
