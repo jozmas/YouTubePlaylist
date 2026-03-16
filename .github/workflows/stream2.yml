@@ -3,7 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '58 21 * * *' # Spustí sa o 21:58 UTC (22:58 v zime, 21:58 v lete)
+    - cron: '58 21 * * *' # Spustí sa o 21:58 UTC (22:58 nášho času v zime)
 
 jobs:
   stream:
@@ -43,17 +43,17 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stabilizovaný stream s vyššou kvalitou..."
+          echo "Spúšťam stabilizovaný stream s maximálnou kvalitou (6000k)..."
           
-          # Optimalizácia pre plynulý chod:
-          # -b:v 5000k: Dostatočná rezerva pre 1080p
-          # -preset ultrafast: Šetrí výkon servera
-          # -bufsize 10000k: Ochrana proti sekaniu
+          # Optimalizácia pre plynulý chod a viditeľnosť na YouTube:
+          # -b:v 6000k: Optimálna bitová rýchlosť pre 1080p
+          # -preset ultrafast: Šetrí výkon GitHub servera
+          # -bufsize 12000k: Ochrana proti sekaniu obrazu
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -c:v libx264 -preset ultrafast -tune zerolatency \
-          -b:v 5000k -minrate 5000k -maxrate 5000k -bufsize 10000k \
+          -b:v 6000k -minrate 6000k -maxrate 6000k -bufsize 12000k \
           -threads 0 -profile:v high -level 4.1 -bf 0 -pix_fmt yuv420p \
           -g 60 -keyint_min 60 -sc_threshold 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
