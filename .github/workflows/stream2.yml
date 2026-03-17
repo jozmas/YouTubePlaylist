@@ -21,7 +21,7 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          # Použitý nový odkaz pre druhý kanál (wotldaily.mp4)
+          # Použitý odkaz pre druhý kanál (wotldaily.mp4)
           URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&raw=1"
           
           echo "Sťahujem video pre Word of the Lord..."
@@ -43,21 +43,23 @@ jobs:
             exit 1
           fi
 
-          echo "Spúšťam stabilizovaný stream s maximálnou kvalitou (6000k)..."
+          echo "Spúšťam stabilizovaný stream s vynúteným 1080p a 30 FPS..."
           
-          # Optimalizácia pre plynulý chod a viditeľnosť na YouTube:
-          # -b:v 6000k: Optimálna bitová rýchlosť pre 1080p
-          # -preset ultrafast: Šetrí výkon GitHub servera
-          # -bufsize 12000k: Ochrana proti sekaniu obrazu
+          # OPRAVA VIDITEĽNOSTI:
+          # -vf scale... : Vynúti Full HD rozlíšenie a pridá čierne okraje, ak nesedí pomer strán
+          # -r 30 : Vynúti stabilných 30 snímok za sekundu
+          # -b:v 6000k : Maximálna kvalita pre stabilitu
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
+          -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
+          -r 30 \
           -c:v libx264 -preset ultrafast -tune zerolatency \
           -b:v 6000k -minrate 6000k -maxrate 6000k -bufsize 12000k \
-          -threads 0 -profile:v high -level 4.1 -bf 0 -pix_fmt yuv420p \
           -g 60 -keyint_min 60 -sc_threshold 0 \
+          -threads 0 -profile:v high -level 4.1 -bf 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
-          -af "volume=0.2" \
-          -c:a aac -b:a 128k -ar 44100 -ac 2 \
+          -af "volume=0.2,aresample=44100" \
+          -c:a aac -b:a 128k -ac 2 \
           -metadata title="Word of the Lord Daily" \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
