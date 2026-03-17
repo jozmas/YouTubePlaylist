@@ -3,7 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '58 21 * * *' # Spustí sa o 21:58 UTC (22:58 nášho času v zime)
+    - cron: '58 20 * * *' # Spustí sa o 20:58 UTC (21:58 nášho času v zime)
 
 jobs:
   stream:
@@ -21,35 +21,13 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          # Použitý odkaz pre druhý kanál (wotldaily.mp4)
           URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&raw=1"
-          
-          echo "Sťahujem video pre Word of the Lord..."
           curl -L "$URL" -o video.mp4
-          
-          FILE_SIZE=$(stat -c%s "video.mp4")
-          if [ "$FILE_SIZE" -lt 10000000 ]; then
-            echo "CHYBA: Súbor je príliš malý. Skontrolujte Dropbox link."
-            exit 1
-          fi
-          echo "Video úspešne stiahnuté (Veľkosť: $FILE_SIZE bajtov)."
 
       - name: Streamovanie na YouTube (Kanal 2)
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
-          if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY_2 chýba v GitHub Secrets!"
-            exit 1
-          fi
-
-          echo "Spúšťam stabilizovaný stream s vynúteným 1080p a 30 FPS..."
-          
-          # OPRAVA VIDITEĽNOSTI:
-          # -vf scale... : Vynúti Full HD rozlíšenie a pridá čierne okraje, ak nesedí pomer strán
-          # -r 30 : Vynúti stabilných 30 snímok za sekundu
-          # -b:v 6000k : Maximálna kvalita pre stabilitu
-          
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
@@ -61,5 +39,4 @@ jobs:
           -x264-params "nal-hrd=cbr:force-cfr=1" \
           -af "volume=0.2,aresample=44100" \
           -c:a aac -b:a 128k -ac 2 \
-          -metadata title="Word of the Lord Daily" \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
