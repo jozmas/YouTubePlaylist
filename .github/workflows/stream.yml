@@ -23,40 +23,40 @@ jobs:
         run: |
           URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=vaumjb28&raw=1"
           
-          echo "Sťahujem video z Dropboxu (377 MB)..."
+          echo "Sťahujem video z Dropboxu..."
           curl -L "$URL" -o video.mp4
           
           FILE_SIZE=$(stat -c%s "video.mp4")
           if [ "$FILE_SIZE" -lt 10000000 ]; then
-            echo "CHYBA: Súbor je príliš malý. Sťahovanie zlyhalo."
+            echo "CHYBA: Súbor je príliš malý."
             exit 1
           fi
-          echo "Video úspešne stiahnuté (Veľkosť: $FILE_SIZE bajtov)."
+          echo "Video úspešne stiahnuté."
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
           if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY nie je nastavený v Secrets!"
+            echo "CHYBA: YOUTUBE_STREAM_KEY chýba!"
             exit 1
           fi
 
-          echo "Spúšťam stabilizovaný stream s maximálnou kvalitou (6000k)..."
+          echo "Spúšťam stabilizovaný stream (6000k, 1080p, 30fps)..."
           
-          # Aplikované vylepšenia pre plynulosť a viditeľnosť:
-          # -b:v 6000k: Optimálna bitová rýchlosť pre 1080p na YouTube
-          # -preset ultrafast: Minimálna záťaž na GitHub Actions server
-          # -bufsize 12000k: Vyššia rezerva pre plynulý tok dát
+          # OPRAVA VIDITEĽNOSTI:
+          # Vynucujeme presný formát, ktorý YouTube vyžaduje na "odomknutie" obrazu
           
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
+          -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
+          -r 30 \
           -c:v libx264 -preset ultrafast -tune zerolatency \
           -b:v 6000k -minrate 6000k -maxrate 6000k -bufsize 12000k \
-          -threads 0 -profile:v high -level 4.1 -bf 0 -pix_fmt yuv420p \
           -g 60 -keyint_min 60 -sc_threshold 0 \
+          -threads 0 -profile:v high -level 4.1 -bf 0 \
           -x264-params "nal-hrd=cbr:force-cfr=1" \
-          -af "volume=0.2" \
-          -c:a aac -b:a 128k -ar 44100 -ac 2 \
+          -af "volume=0.2,aresample=44100" \
+          -c:a aac -b:a 128k -ac 2 \
           -metadata title="Relaxing Nature Sounds" \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
