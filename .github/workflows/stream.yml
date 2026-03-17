@@ -3,7 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '05 20 * * *' # Spustí sa o 20:05 UTC (21:05 nášho času v zime)
+    - cron: '15 20 * * *' # Spustí sa o 20:15 UTC (21:15 nášho času v zime)
 
 jobs:
   stream:
