@@ -3,7 +3,11 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '33 19 * * *' # Spustí sa o 19:33 UTC (20:33 nášho času)
+    # Skúšame každých 15 minút počas najbližšej hodiny (21:00 - 22:00 nášho času)
+    - cron: '00 20 * * *'
+    - cron: '15 20 * * *'
+    - cron: '30 20 * * *'
+    - cron: '45 20 * * *'
 
 jobs:
   stream:
@@ -22,6 +26,7 @@ jobs:
       - name: Stiahnutie videa
         run: |
           URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=vaumjb28&raw=1"
+          echo "Sťahujem video..."
           curl -L "$URL" -o video.mp4
           
           FILE_SIZE=$(stat -c%s "video.mp4")
@@ -29,12 +34,19 @@ jobs:
             echo "CHYBA: Súbor je príliš malý."
             exit 1
           fi
+          echo "Súbor pripravený."
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Nastavenia sú teraz na maximálnej úrovni stability
+          if [ -z "$YOUTUBE_KEY" ]; then
+            echo "CHYBA: YOUTUBE_STREAM_KEY chýba!"
+            exit 1
+          fi
+
+          echo "Spúšťam stabilizovaný stream (6000k, 1080p, 30fps)..."
+          
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
