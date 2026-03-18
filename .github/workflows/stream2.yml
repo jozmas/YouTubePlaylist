@@ -3,8 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    # Skúšame každých 15 minút medzi 21:10 a 22:10 nášho času (20:10 - 21:10 UTC)
-    - cron: '10 20 * * *'
+    # Skúšame každých 15 minút (21:25, 21:40, 21:55 nášho času)
     - cron: '25 20 * * *'
     - cron: '40 20 * * *'
     - cron: '55 20 * * *'
@@ -26,20 +25,12 @@ jobs:
       - name: Stiahnutie videa
         run: |
           URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&raw=1"
-          echo "Sťahujem video pre Word of the Lord..."
           curl -L "$URL" -o video.mp4
 
       - name: Streamovanie na YouTube (Kanal 2)
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
-          if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY_2 chýba!"
-            exit 1
-          fi
-
-          echo "Spúšťam stabilizovaný stream (6000k, 1080p, 30fps)..."
-          
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
