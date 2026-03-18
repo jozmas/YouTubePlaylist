@@ -3,12 +3,12 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '45 19 * * *' # Spustí sa o 19:45 UTC (20:45 nášho času v zime)
+    - cron: '45 19 * * *' # Spustí sa o 19:45 UTC (20:45 nášho času)
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360 # Bezpečné ukončenie po 6 hodinách
+    timeout-minutes: 360 
 
     steps:
       - name: Checkout kódu
@@ -22,8 +22,6 @@ jobs:
       - name: Stiahnutie videa
         run: |
           URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=vaumjb28&raw=1"
-          
-          echo "Sťahujem video z Dropboxu..."
           curl -L "$URL" -o video.mp4
           
           FILE_SIZE=$(stat -c%s "video.mp4")
@@ -31,22 +29,12 @@ jobs:
             echo "CHYBA: Súbor je príliš malý."
             exit 1
           fi
-          echo "Video úspešne stiahnuté."
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          if [ -z "$YOUTUBE_KEY" ]; then
-            echo "CHYBA: YOUTUBE_STREAM_KEY chýba!"
-            exit 1
-          fi
-
-          echo "Spúšťam stabilizovaný stream (6000k, 1080p, 30fps)..."
-          
-          # OPRAVA VIDITEĽNOSTI:
-          # Vynucujeme presný formát, ktorý YouTube vyžaduje na "odomknutie" obrazu
-          
+          # Nastavenia sú teraz na maximálnej úrovni stability
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
