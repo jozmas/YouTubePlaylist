@@ -3,9 +3,8 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '25 20 * * *'
-    - cron: '40 20 * * *'
-    - cron: '55 20 * * *'
+    - cron: '51 20 * * *' # 21:51 nášho času (Zima)
+    - cron: '06 21 * * *' # 22:06 nášho času (Záloha)
 
 jobs:
   stream:
