@@ -1,10 +1,10 @@
-name: YouTube Live Stream - Relaxing Nature Sounds
+name: YouTube Live Stream - Word of the Lord
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '47 20 * * *' # 21:47 nášho času (Zima)
-    - cron: '04 21 * * *' # 22:04 nášho času (Záloha)
+    - cron: '53 20 * * *' # 21:53 nášho času (Zima)
+    - cron: '09 21 * * *' # 22:09 nášho času (Záloha)
 
 jobs:
   stream:
@@ -22,12 +22,12 @@ jobs:
 
       - name: Stiahnutie videa
         run: |
-          URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=vaumjb28&raw=1"
+          URL="https://www.dropbox.com/scl/fi/fmu96nc0hlmh3vz0v8cxu/wotldaily.mp4?rlkey=0fwtwxzn597kvjab8i7a614u3&st=217qa7na&raw=1"
           curl -L "$URL" -o video.mp4
 
-      - name: Streamovanie na YouTube
+      - name: Streamovanie na YouTube (Kanal 2)
         env:
-          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
           ffmpeg -re -stream_loop -1 -i video.mp4 \
           -map 0:v:0 -map 0:a:0 \
