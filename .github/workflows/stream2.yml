@@ -3,9 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '53 20 * * *' # 21:53 nášho času
-    - cron: '09 21 * * *' # 22:09 nášho času (Záloha 1)
-    - cron: '24 21 * * *' # 22:24 nášho času (Záloha 2)
+    - cron: '53 20 * * *' # 21:53 nášho času - Hlavný a jediný štart
 
 jobs:
   stream:
@@ -31,6 +29,7 @@ jobs:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
           # Nekonečná slučka: Ak FFmpeg skončí/spadne, po 3 sekundách sa spustí znova
+          # Toto nahrádza potrebu viacerých cron plánov
           while true; do
             ffmpeg -re -stream_loop -1 -i video.mp4 \
             -map 0:v:0 -map 0:a:0 \
