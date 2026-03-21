@@ -3,9 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '51 20 * * *' # 21:51 nášho času
-    - cron: '06 21 * * *' # 22:06 nášho času (Záloha 1)
-    - cron: '21 21 * * *' # 22:21 nášho času (Záloha 2)
+    - cron: '51 20 * * *' # Štart o 21:51 nášho času
 
 jobs:
   stream:
@@ -30,7 +28,6 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Pridaná slučka pre automatický reštart pri výpadku
           while true; do
             ffmpeg -re -stream_loop -1 -i video.mp4 \
             -map 0:v:0 -map 0:a:0 \
@@ -44,6 +41,5 @@ jobs:
             -af "volume=0.2,aresample=44100" \
             -c:a aac -b:a 128k -ac 2 \
             -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY" || echo "Restarting..."
-            
             sleep 3
           done
