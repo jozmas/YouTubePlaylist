@@ -3,7 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '51 20 * * *' # Štart o 21:51 nášho času
+    - cron: '51 20 * * *' # 21:51 nášho času
 
 jobs:
   stream:
@@ -34,7 +34,7 @@ jobs:
             -map 0:v:0 -map 0:a:0 \
             -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
             -r 30 \
-            -c:v libx264 -preset ultrafast -tune zerolatency \
+            -c:v libx264 -preset ultrafast -tune film \
             -b:v 8000k -minrate 8000k -maxrate 8000k -bufsize 16000k \
             -g 60 -keyint_min 60 -sc_threshold 0 \
             -threads 0 -profile:v high -level 4.1 -bf 0 \
