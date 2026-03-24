@@ -14,10 +14,11 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
 
-      - name: Inštalácia FFmpeg
+      - name: Príprava prostredia
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg curl
+          sudo apt-get install -y curl
+          ffmpeg -version
 
       - name: Stiahnutie videa
         run: |
@@ -40,6 +41,6 @@ jobs:
             -x264-params "nal-hrd=cbr:force-cfr=1" \
             -af "volume=0.2,aresample=44100" \
             -c:a aac -b:a 128k -ac 2 \
-            -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY" || echo "Restarting..."
+            -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY" || echo "Restarting..."
             sleep 3
           done
