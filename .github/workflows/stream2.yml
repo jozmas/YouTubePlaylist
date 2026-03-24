@@ -3,7 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '53 20 * * *' # 21:53 nášho času - Hlavný a jediný štart
+    - cron: '53 20 * * *' # 21:53 nášho času
 
 jobs:
   stream:
@@ -14,10 +14,11 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
 
-      - name: Inštalácia FFmpeg
+      - name: Príprava prostredia
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg curl
+          sudo apt-get install -y curl
+          ffmpeg -version
 
       - name: Stiahnutie videa
         run: |
@@ -28,7 +29,6 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
-          # Nekonečná slučka: Ak FFmpeg skončí/spadne, po 3 sekundách sa spustí znova
           while true; do
             ffmpeg -re -stream_loop -1 -i video.mp4 \
             -map 0:v:0 -map 0:a:0 \
@@ -41,7 +41,6 @@ jobs:
             -x264-params "nal-hrd=cbr:force-cfr=1" \
             -af "volume=0.2,aresample=44100" \
             -c:a aac -b:a 128k -ac 2 \
-            -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY" || echo "FFmpeg spadol, reštartujem o 3 sekundy..."
-            
+            -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY" || echo "Restarting..."
             sleep 3
           done
