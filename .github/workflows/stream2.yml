@@ -31,11 +31,11 @@ jobs:
         run: |
           while true; do
             ffmpeg -re -stream_loop -1 -i video.mp4 \
-            -map 0:v:0 -map 0:a:0 \
-            -vf "scale=1920:1080,format=yuv420p" \
-            -r 30 \
             -c:v libx264 -preset veryfast -tune film \
             -b:v 6000k -maxrate 6000k -bufsize 12000k \
-            -pix_fmt yuv420p -g 60 \
-            -c:a aac -b:a 128k -ac 2 \
-            -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY" || echo "
+            -pix_fmt yuv420p -g 60 -r 30 \
+            -vf "scale=1920:1080,format=yuv420p" \
+            -c:a aac -b:a 128k -ac 2 -ar 44100 \
+            -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY" || echo "Restarting..."
+            sleep 3
+          done
