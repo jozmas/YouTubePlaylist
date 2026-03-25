@@ -14,10 +14,10 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
 
-      - name: Inštalácia FFmpeg a závislostí
+      - name: Inštalácia FFmpeg
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg curl
+          sudo apt-get install -y ffmpeg
           ffmpeg -version
 
       - name: Stiahnutie videa
@@ -29,15 +29,12 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          ffmpeg -re -stream_loop -1 -i video.mp4 \
-          -map 0:v:0 -map 0:a:0 \
-          -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
-          -r 30 \
-          -c:v libx264 -preset ultrafast -tune film \
-          -b:v 6000k -minrate 6000k -maxrate 6000k -bufsize 30000k \
-          -g 60 -keyint_min 60 -sc_threshold 0 \
-          -threads 0 -profile:v high -level 4.1 -bf 0 \
-          -x264-params "nal-hrd=cbr:force-cfr=1" \
-          -af "volume=0.2,aresample=44100" \
-          -c:a aac -b:a 128k -ac 2 \
+          # Parameter -nostdin je kľúčový pre beh v cloude (chyba 251)
+          # -stream_loop -1 zabezpečí nekonečné opakovanie videa
+          ffmpeg -nostdin -re -stream_loop -1 -i video.mp4 \
+          -c:v libx264 -preset veryfast -tune film \
+          -b:v 6000k -maxrate 6000k -bufsize 12000k \
+          -pix_fmt yuv420p -g 60 -r 30 \
+          -vf "scale=1920:1080,format=yuv420p" \
+          -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY"
