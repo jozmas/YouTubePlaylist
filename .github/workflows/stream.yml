@@ -29,12 +29,12 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Parameter -nostdin je kľúčový pre beh v cloude (chyba 251)
-          # -stream_loop -1 zabezpečí nekonečné opakovanie videa
+          # Použitie live2 adresy a -nostdin pre stabilitu v cloude
+          # Pridaný -f flv pre jasnú definíciu protokolu
           ffmpeg -nostdin -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
           -pix_fmt yuv420p -g 60 -r 30 \
           -vf "scale=1920:1080,format=yuv420p" \
           -c:a aac -b:a 128k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live/$YOUTUBE_KEY"
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
