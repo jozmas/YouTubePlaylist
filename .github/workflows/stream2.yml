@@ -3,7 +3,7 @@ name: YouTube Live Stream - Word of the Lord
 on:
   workflow_dispatch:
   schedule:
-    - cron: '53 19 * * *' # Štart o 20:53 nášho času
+    - cron: '53 18 * * *' # Štart o 19:53 nášho času
 
 jobs:
   stream:
