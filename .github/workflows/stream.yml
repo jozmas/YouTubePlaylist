@@ -9,6 +9,9 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    # Pridané oprávnenia, aby GitHub Actions mohol zapisovať do repozitára
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout kódu
@@ -29,8 +32,7 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Použitie live2 adresy a -nostdin pre stabilitu v cloude
-          # Pridaný -f flv pre jasnú definíciu protokolu
+          # Stream pobeží 6 hodín (vďaka timeout-minutes vyššie)
           ffmpeg -nostdin -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
@@ -38,3 +40,13 @@ jobs:
           -vf "scale=1920:1080,format=yuv420p" \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+
+      - name: Udržanie repozitára aktívneho (Keep-alive)
+        if: always() # Spustí sa aj keď stream skončí s chybou
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Posledný úspešný stream: $(date)" > last_run.txt
+          git add last_run.txt
+          git commit -m "Automatická údržba: Stream dokončený $(date)" || exit 0
+          git push
