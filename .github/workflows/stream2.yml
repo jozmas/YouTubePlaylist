@@ -9,6 +9,9 @@ jobs:
   stream:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    # Povolenie zápisu pre GitHub Actions, aby mohol aktualizovať repozitár
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout kódu
@@ -42,3 +45,13 @@ jobs:
           -af "volume=0.2,aresample=44100" \
           -c:a aac -b:a 128k -ac 2 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+
+      - name: Udržanie repozitára aktívneho (Keep-alive)
+        if: always() # Spustí sa aj pri manuálnom zastavení alebo chybe
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Posledný stream (WOTL) ukončený: $(date)" > last_run_word.txt
+          git add last_run_word.txt
+          git commit -m "Údržba: Aktualizácia aktivity streamu $(date)" || exit 0
+          git push
