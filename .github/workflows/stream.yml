@@ -8,7 +8,6 @@ on:
     - cron: '21 11 * * *' # 13:21 poobede (u nás)
     - cron: '37 17 * * *' # 19:37 večer (u nás)
 
-# ZABRÁNI KONFLIKTOM: Nový stream automaticky vypne ten starý
 concurrency:
   group: youtube-live
   cancel-in-progress: true
@@ -33,10 +32,12 @@ jobs:
         run: |
           rm -rf *.mp4
           
+          # ZOZNAM AKTUALIZOVANÝ O JASKYŇU
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
+            "https://www.dropbox.com/scl/fi/41dgp7s1to0ecavdwbhqv/cave.mp4?rlkey=g4oks0ycbejg2h2pnvjg2uymy&raw=1"
           )
           
           SEED=$(($(date +%s%N) + $RANDOM))
@@ -44,8 +45,8 @@ jobs:
           SELECTED_URL=${VIDEOS[$INDEX]}
           
           echo "==========================================="
-          echo "🎬 ŠTARTUJEM NOVÝ BLOK (ŠPINAVÝ ČAS)"
-          echo "🔢 VYBRANÝ INDEX: $INDEX"
+          echo "🎬 ŠTARTUJEM NOVÝ BLOK"
+          echo "🔢 VYBRANÝ INDEX: $INDEX (zo ${#VIDEOS[@]} videí)"
           echo "🔗 URL: $SELECTED_URL"
           echo "==========================================="
           
