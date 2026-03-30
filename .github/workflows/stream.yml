@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout kódu
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Dôležité pre správny git push
 
       - name: Inštalácia FFmpeg
         run: |
@@ -23,44 +25,46 @@ jobs:
 
       - name: Výber a stiahnutie videa
         run: |
-          # Zoznam videí
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
           )
           
-          # Výpočet indexu pomocou sekúnd + minút pre ešte lepšiu náhodu
-          SEC=$(date +%S)
-          MIN=$(date +%M)
-          COUNT=${#VIDEOS[@]}
-          INDEX=$(( (10#$SEC + 10#$MIN) % COUNT ))
-          
+          # Lepšia náhoda cez nanosekundy
+          INDEX=$(( $(date +%N) % ${#VIDEOS[@]} ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
-          echo "------------------------------------------"
-          echo "LOG: Spustené v čase: $(date +%H:%M:%S)"
-          echo "LOG: Vybraný index: $INDEX"
-          echo "LOG: Sťahujem URL: $SELECTED_URL"
-          echo "------------------------------------------"
+          echo "VYBRANÝ INDEX: $INDEX"
+          echo "SŤAHUJEM: $SELECTED_URL"
           
-          # 1. KROK: Úplne vymazať staré video, ak tam zostalo
-          rm -f video.mp4
+          # Stiahneme to pod unikátnym názvom, aby sme obišli cache
+          curl -L "$SELECTED_URL" -o "current_video.mp4"
           
-          # 2. KROK: Stiahnuť video nanovo
-          curl -L "$SELECTED_URL" -o video.mp4
-          
-          # 3. KROK: Kontrola veľkosti (ak je súbor príliš malý, niečo je zle)
-          ls -lh video.mp4
+          # Kontrola, či sa súbor naozaj stiahol (vypíše veľkosť)
+          du -sh current_video.mp4
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Používame -y na automatické prepísanie výstupu, ak by niekde zostal visieť
-          ffmpeg -y -nostdin -re -stream_loop -1 -i video.mp4 \
+          # Použijeme stiahnutý súbor current_video.mp4
+          ffmpeg -re -stream_loop -1 -i current_video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
           -pix_fmt yuv420p -g 60 -r 30 \
           -vf "scale=1920:1080,format=yuv420p" \
-          -c:a aac -b:a
+          -c:a aac -b:a 320k -ar 44100 \
+          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+
+      - name: Udržanie repozitára aktívneho (Keep-alive)
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # Oprava chyby 'rejected': najprv stiahneme zmeny, potom zapíšeme
+          git pull origin main
+          echo "Posledný úspešný stream: $(date)" > last_run.txt
+          git add last_run.txt
+          git commit -m "Automatická údržba: Stream dokončený $(date)" || exit 0
+          git push origin main
