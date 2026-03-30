@@ -1,12 +1,11 @@
-name: YouTube Live Stream - Waterfall ONLY
+name: TOTALNY RESET STREAMU
 
 on:
-  workflow_dispatch: # Aby si to mohol spustiť ručne tlačidlom
+  workflow_dispatch:
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 600
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -14,25 +13,25 @@ jobs:
       - name: Instalacia FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Stiahnutie VODOPADU
+      - name: Sťahovanie VODOPADU
         run: |
-          # 1. TVRDY RESET: Vymažeme úplne všetko s koncovkou .mp4
+          # Vymazať úplne všetko staré
           rm -rf *.mp4
           
-          # 2. Link na vodopád s "trikom" proti pamäti (nocache)
-          URL="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1&nocache=$(date +%s)"
+          # Nový link na vodopád
+          URL="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
           
-          # 3. Sťahujeme pod ÚPLNE NOVÝM NÁZVOM
-          curl -L "$URL" -o "moj_novy_vodopad.mp4"
+          # Uložíme to pod názvom, ktorý neexistoval
+          curl -L "$URL" -o "uplne_nove_video_2026.mp4"
           
-          # 4. Kontrola veľkosti (ak má 0 bajtov, niečo je zle)
-          ls -lh moj_novy_vodopad.mp4
+          # Overíme dĺžku (VODOPÁD má 47 sekúnd, JASKYŇA 249 sekúnd)
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 uplne_nove_video_2026.mp4
 
-      - name: Streamovanie na YouTube
+      - name: Streamovanie
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Používame názov moj_novy_vodopad.mp4
-          ffmpeg -re -stream_loop -1 -i moj_novy_vodopad.mp4 \
-          -c:v libx264 -preset ultrafast -tune film -b:v 4500k \
-          -pix_fmt yuv420p -g 60 -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          # Používame ten nový názov
+          ffmpeg -re -stream_loop -1 -i uplne_nove_video_2026.mp4 \
+          -c:v libx264 -preset ultrafast -b:v 4000k \
+          -pix_fmt yuv420p -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
