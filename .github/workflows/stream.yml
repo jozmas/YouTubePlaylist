@@ -3,7 +3,7 @@ name: YouTube Live Stream - Nature Mix
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 18 * * *' # Každý deň o 20:30
+    - cron: '30 18 * * *'
 
 jobs:
   stream:
@@ -21,35 +21,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Výber a stiahnutie náhodného videa
+      - name: VÝBER VIDEA A KONTROLA
         run: |
-          # Vyčistenie starých súborov
           rm -rf *.mp4
           
-          # ZOZNAM TVOJICH VIDEÍ
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
           )
           
-          # Náhodný výber indexu (0, 1 alebo 2)
-          INDEX=$(( $(date +%N) % ${#VIDEOS[@]} ))
+          # VYLEPŠENÁ NÁHODA (Sekundy + Nanosekundy + Random)
+          SEED=$(($(date +%s%N) + $RANDOM))
+          INDEX=$(( $SEED % ${#VIDEOS[@]} ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
-          echo "---------------------------------------"
-          echo "VYBRANÉ VIDEO ČÍSLO: $INDEX"
-          echo "SŤAHUJEM: $SELECTED_URL"
-          echo "---------------------------------------"
+          echo "==========================================="
+          echo "🎬 AKTIVITA: STARTUJEM NOVY STREAM"
+          echo "🔢 VYBRANY INDEX: $INDEX"
+          echo "🔗 URL: $SELECTED_URL"
+          echo "==========================================="
           
-          # Stiahnutie vybraného videa
           curl -L "$SELECTED_URL" -o "video_na_stream.mp4"
+          
+          echo "✅ SUBOR STIAHNUTY. VELKOST:"
+          du -sh video_na_stream.mp4
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Streamovanie vybraného súboru v nekonečnej slučke
           ffmpeg -re -stream_loop -1 -i video_na_stream.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 5000k -maxrate 5000k -bufsize 10000k \
@@ -57,13 +58,13 @@ jobs:
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
 
-      - name: Keep-alive (Zápis do logu)
+      - name: Keep-alive
         if: always()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase
-          echo "Stream bežal dňa: $(date)" > last_run.txt
+          echo "Stream bežal: $(date)" > last_run.txt
           git add last_run.txt
-          git commit -m "Automatický update logu" || exit 0
+          git commit -m "Log update" || exit 0
           git push origin main
