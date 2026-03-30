@@ -1,11 +1,12 @@
-name: MANUALNY VODOPAD TEST
+name: YouTube Live Stream - Waterfall ONLY
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Aby si to mohol spustiť ručne tlačidlom
 
 jobs:
   stream:
     runs-on: ubuntu-latest
+    timeout-minutes: 600 # Stream pobeží 10 hodín
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -13,21 +14,25 @@ jobs:
       - name: Instalacia FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Stiahnutie a kontrola
+      - name: Stiahnutie VODOPADU
         run: |
-          # Pouzijeme iny vodopad, aby sme vylucili chybu prveho
-          URL="https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
-          curl -L "$URL" -o "final_video.mp4"
+          # 1. TVRDY RESET: Vymažeme úplne všetko s koncovkou .mp4
+          rm -rf *.mp4
           
-          echo "KONTROLA SUBORU:"
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 final_video.mp4
+          # 2. Link na vodopád s "trikom" proti pamäti (nocache)
+          URL="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1&nocache=$(date +%s)"
+          
+          # 3. Sťahujeme pod ÚPLNE NOVÝM NÁZVOM
+          curl -L "$URL" -o "moj_novy_vodopad.mp4"
+          
+          # 4. Kontrola veľkosti (ak má 0 bajtov, niečo je zle)
+          ls -lh moj_novy_vodopad.mp4
 
-      - name: Streamovanie
+      - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Pridali sme -ignore_unknown a -re pre stabilitu
-          ffmpeg -re -stream_loop -1 -i final_video.mp4 \
-          -c:v libx264 -preset ultrafast -b:v 4500k \
-          -maxrate 4500k -bufsize 9000k -pix_fmt yuv420p \
-          -g 60 -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          # Používame názov moj_novy_vodopad.mp4
+          ffmpeg -re -stream_loop -1 -i moj_novy_vodopad.mp4 \
+          -c:v libx264 -preset ultrafast -tune film -b:v 4500k \
+          -pix_fmt yuv420p -g 60 -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
