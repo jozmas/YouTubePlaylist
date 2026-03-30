@@ -1,4 +1,4 @@
-name: DEFINITIVNY VODOPAD TEST
+name: MANUALNY VODOPAD TEST
 
 on:
   workflow_dispatch:
@@ -13,24 +13,21 @@ jobs:
       - name: Instalacia FFmpeg
         run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Stiahnutie VODOPADU
+      - name: Stiahnutie a kontrola
         run: |
-          # TU NIE JE ZIADNA JASKYNA
-          URL="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
+          # Pouzijeme iny vodopad, aby sme vylucili chybu prveho
+          URL="https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
+          curl -L "$URL" -o "final_video.mp4"
           
-          # Vymazanie vsetkeho stareho
-          rm -rf *.mp4
-          
-          # Stiahnutie pod uplne novym nazvom
-          curl -L "$URL" -o "video_co_nie_je_jaskyna.mp4"
-          
-          # Vypis informacii o videu do logu (POZRI SI TOTO!)
-          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video_co_nie_je_jaskyna.mp4
+          echo "KONTROLA SUBORU:"
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 final_video.mp4
 
       - name: Streamovanie
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          ffmpeg -re -stream_loop -1 -i video_co_nie_je_jaskyna.mp4 \
-          -c:v libx264 -preset veryfast -b:v 6000k \
-          -pix_fmt yuv420p -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
+          # Pridali sme -ignore_unknown a -re pre stabilitu
+          ffmpeg -re -stream_loop -1 -i final_video.mp4 \
+          -c:v libx264 -preset ultrafast -b:v 4500k \
+          -maxrate 4500k -bufsize 9000k -pix_fmt yuv420p \
+          -g 60 -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
