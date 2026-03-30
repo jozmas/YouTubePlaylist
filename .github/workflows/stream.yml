@@ -3,7 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 18 * * *' # 20:30 nášho času (vytvára rezervu pre meškanie GitHubu)
+    - cron: '30 18 * * *' # 20:30 nášho času (Letný čas +2h UTC)
 
 jobs:
   stream:
@@ -23,10 +23,11 @@ jobs:
 
       - name: Výber a stiahnutie náhodného videa
         run: |
-          # Zoznam tvojich videí z Dropboxu (upravené na direct download cez raw=1)
+          # Zoznam tvojich videí z Dropboxu (všetky upravené na raw=1)
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
+            "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
           )
           
           # Náhodný výber jedného videa zo zoznamu
@@ -40,7 +41,7 @@ jobs:
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # FFmpeg nastavený na Full HD a 320k audio kvalitu
+          # FFmpeg: Full HD, 30 FPS, Audio 320k pre špičkový zvuk
           ffmpeg -nostdin -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
