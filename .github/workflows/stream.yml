@@ -3,13 +3,12 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '45 18 * * *' # 20:45 nášho času
+    - cron: '30 18 * * *' # 20:30 nášho času (vytvára rezervu pre meškanie GitHubu)
 
 jobs:
   stream:
     runs-on: ubuntu-latest
     timeout-minutes: 360
-    # Pridané oprávnenia, aby GitHub Actions mohol zapisovať do repozitára
     permissions:
       contents: write
 
@@ -21,28 +20,37 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          ffmpeg -version
 
-      - name: Stiahnutie videa
+      - name: Výber a stiahnutie náhodného videa
         run: |
-          URL="https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&st=vaumjb28&raw=1"
-          curl -L "$URL" -o video.mp4
+          # Zoznam tvojich videí z Dropboxu (upravené na direct download cez raw=1)
+          VIDEOS=(
+            "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
+            "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
+          )
+          
+          # Náhodný výber jedného videa zo zoznamu
+          SELECTED_URL=${VIDEOS[$RANDOM % ${#VIDEOS[@]}]}
+          echo "Dnes bolo vyžrebované video: $SELECTED_URL"
+          
+          # Stiahnutie vybraného súboru
+          curl -L "$SELECTED_URL" -o video.mp4
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Stream pobeží 6 hodín (vďaka timeout-minutes vyššie)
+          # FFmpeg nastavený na Full HD a 320k audio kvalitu
           ffmpeg -nostdin -re -stream_loop -1 -i video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
           -pix_fmt yuv420p -g 60 -r 30 \
           -vf "scale=1920:1080,format=yuv420p" \
-          -c:a aac -b:a 128k -ar 44100 \
+          -c:a aac -b:a 320k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
 
       - name: Udržanie repozitára aktívneho (Keep-alive)
-        if: always() # Spustí sa aj keď stream skončí s chybou
+        if: always()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
