@@ -16,7 +16,7 @@ jobs:
       - name: Checkout kódu
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Dôležité pre správny git push
+          fetch-depth: 0
 
       - name: Inštalácia FFmpeg
         run: |
@@ -25,31 +25,36 @@ jobs:
 
       - name: Výber a stiahnutie videa
         run: |
+          # 1. Poistka: Vymažeme akékoľvek staré mp4 súbory v priečinku
+          rm -f *.mp4
+          
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
           )
           
-          # Lepšia náhoda cez nanosekundy
+          # Výber náhodného indexu
           INDEX=$(( $(date +%N) % ${#VIDEOS[@]} ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
+          echo "---------------------------------------"
           echo "VYBRANÝ INDEX: $INDEX"
           echo "SŤAHUJEM: $SELECTED_URL"
+          echo "---------------------------------------"
           
-          # Stiahneme to pod unikátnym názvom, aby sme obišli cache
-          curl -L "$SELECTED_URL" -o "current_video.mp4"
+          # Stiahneme video pod názvom live_video.mp4
+          curl -L "$SELECTED_URL" -o "live_video.mp4"
           
-          # Kontrola, či sa súbor naozaj stiahol (vypíše veľkosť)
-          du -sh current_video.mp4
+          # Overenie veľkosti súboru v logu
+          ls -lh live_video.mp4
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Použijeme stiahnutý súbor current_video.mp4
-          ffmpeg -re -stream_loop -1 -i current_video.mp4 \
+          # TU BOLA CHYBA: Teraz už presne odkazujeme na live_video.mp4
+          ffmpeg -re -stream_loop -1 -i live_video.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
           -pix_fmt yuv420p -g 60 -r 30 \
@@ -62,8 +67,10 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # Oprava chyby 'rejected': najprv stiahneme zmeny, potom zapíšeme
-          git pull origin main
+          
+          # Najprv stiahneme zmeny, aby sme predišli chybe 'rejected'
+          git pull origin main --rebase
+          
           echo "Posledný úspešný stream: $(date)" > last_run.txt
           git add last_run.txt
           git commit -m "Automatická údržba: Stream dokončený $(date)" || exit 0
