@@ -3,7 +3,7 @@ name: YouTube Live Stream - Relaxing Nature Sounds
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 18 * * *' # 20:30 nášho času
+    - cron: '30 18 * * *'
 
 jobs:
   stream:
@@ -15,46 +15,43 @@ jobs:
     steps:
       - name: Checkout kódu
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Inštalácia FFmpeg
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Výber a stiahnutie videa
+      - name: Absolútne čistý výber videa
         run: |
-          # 1. Poistka: Vymažeme akékoľvek staré mp4 súbory v priečinku
-          rm -f *.mp4
+          # 1. Vymazať úplne všetko MP4 z disku
+          rm -rf *.mp4
           
-          VIDEOS=(
-            "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
-            "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
-            "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
-          )
+          # 2. Zoznam LEN VODOPÁDOV (Jaskyňu som vymazal!)
+          # Pridal som na koniec &nocache=... aby sme oklamali Dropbox
+          URL_VODOPAD_1="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1&nocache=$(date +%s)"
+          URL_VODOPAD_2="https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1&nocache=$(date +%s)"
           
-          # Výber náhodného indexu
-          INDEX=$(( $(date +%N) % ${#VIDEOS[@]} ))
-          SELECTED_URL=${VIDEOS[$INDEX]}
+          # 3. Náhodný výber medzi 1 a 2
+          if [ $(( $(date +%s) % 2 )) -eq 0 ]; then
+            FINAL_URL=$URL_VODOPAD_1
+            echo "ROZHODNUTIE: Idem sťahovať VODOPÁD 1"
+          else
+            FINAL_URL=$URL_VODOPAD_2
+            echo "ROZHODNUTIE: Idem sťahovať VODOPÁD 2"
+          fi
           
-          echo "---------------------------------------"
-          echo "VYBRANÝ INDEX: $INDEX"
-          echo "SŤAHUJEM: $SELECTED_URL"
-          echo "---------------------------------------"
+          # 4. Sťahovanie pod ÚPLNE NOVÝM NÁZVOM
+          curl -L "$FINAL_URL" -o "cerstve_video_dnes.mp4"
           
-          # Stiahneme video pod názvom live_video.mp4
-          curl -L "$SELECTED_URL" -o "live_video.mp4"
-          
-          # Overenie veľkosti súboru v logu
-          ls -lh live_video.mp4
+          # 5. Kontrola dĺžky videa (Vodopád má iný čas ako jaskyňa)
+          ffprobe -i cerstve_video_dnes.mp4 -show_entries format=duration -v quiet -of csv='p=0'
 
       - name: Streamovanie na YouTube
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # TU BOLA CHYBA: Teraz už presne odkazujeme na live_video.mp4
-          ffmpeg -re -stream_loop -1 -i live_video.mp4 \
+          # Používame ten nový názov súboru
+          ffmpeg -re -stream_loop -1 -i cerstve_video_dnes.mp4 \
           -c:v libx264 -preset veryfast -tune film \
           -b:v 6000k -maxrate 6000k -bufsize 12000k \
           -pix_fmt yuv420p -g 60 -r 30 \
@@ -62,16 +59,13 @@ jobs:
           -c:a aac -b:a 320k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
 
-      - name: Udržanie repozitára aktívneho (Keep-alive)
+      - name: Keep-alive
         if: always()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Najprv stiahneme zmeny, aby sme predišli chybe 'rejected'
           git pull origin main --rebase
-          
-          echo "Posledný úspešný stream: $(date)" > last_run.txt
+          echo "$(date)" > last_run.txt
           git add last_run.txt
-          git commit -m "Automatická údržba: Stream dokončený $(date)" || exit 0
+          git commit -m "Udrzba" || exit 0
           git push origin main
