@@ -1,71 +1,36 @@
-name: YouTube Live Stream - Relaxing Nature Sounds
+name: DEFINITIVNY VODOPAD TEST
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '30 18 * * *'
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout kódu
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Inštalácia FFmpeg
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
+      - name: Instalacia FFmpeg
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
 
-      - name: Absolútne čistý výber videa
+      - name: Stiahnutie VODOPADU
         run: |
-          # 1. Vymazať úplne všetko MP4 z disku
+          # TU NIE JE ZIADNA JASKYNA
+          URL="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
+          
+          # Vymazanie vsetkeho stareho
           rm -rf *.mp4
           
-          # 2. Zoznam LEN VODOPÁDOV (Jaskyňu som vymazal!)
-          # Pridal som na koniec &nocache=... aby sme oklamali Dropbox
-          URL_VODOPAD_1="https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1&nocache=$(date +%s)"
-          URL_VODOPAD_2="https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1&nocache=$(date +%s)"
+          # Stiahnutie pod uplne novym nazvom
+          curl -L "$URL" -o "video_co_nie_je_jaskyna.mp4"
           
-          # 3. Náhodný výber medzi 1 a 2
-          if [ $(( $(date +%s) % 2 )) -eq 0 ]; then
-            FINAL_URL=$URL_VODOPAD_1
-            echo "ROZHODNUTIE: Idem sťahovať VODOPÁD 1"
-          else
-            FINAL_URL=$URL_VODOPAD_2
-            echo "ROZHODNUTIE: Idem sťahovať VODOPÁD 2"
-          fi
-          
-          # 4. Sťahovanie pod ÚPLNE NOVÝM NÁZVOM
-          curl -L "$FINAL_URL" -o "cerstve_video_dnes.mp4"
-          
-          # 5. Kontrola dĺžky videa (Vodopád má iný čas ako jaskyňa)
-          ffprobe -i cerstve_video_dnes.mp4 -show_entries format=duration -v quiet -of csv='p=0'
+          # Vypis informacii o videu do logu (POZRI SI TOTO!)
+          ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 video_co_nie_je_jaskyna.mp4
 
-      - name: Streamovanie na YouTube
+      - name: Streamovanie
         env:
           YOUTUBE_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
         run: |
-          # Používame ten nový názov súboru
-          ffmpeg -re -stream_loop -1 -i cerstve_video_dnes.mp4 \
-          -c:v libx264 -preset veryfast -tune film \
-          -b:v 6000k -maxrate 6000k -bufsize 12000k \
-          -pix_fmt yuv420p -g 60 -r 30 \
-          -vf "scale=1920:1080,format=yuv420p" \
-          -c:a aac -b:a 320k -ar 44100 \
-          -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
-
-      - name: Keep-alive
-        if: always()
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git pull origin main --rebase
-          echo "$(date)" > last_run.txt
-          git add last_run.txt
-          git commit -m "Udrzba" || exit 0
-          git push origin main
+          ffmpeg -re -stream_loop -1 -i video_co_nie_je_jaskyna.mp4 \
+          -c:v libx264 -preset veryfast -b:v 6000k \
+          -pix_fmt yuv420p -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
