@@ -1,14 +1,22 @@
-name: YouTube Live Stream - Nature Mix
+name: YouTube Live 24/7 - Nature Mix
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '30 18 * * *'
+    - cron: '12 0 * * *'  # 02:12 ráno (u nás)
+    - cron: '43 5 * * *'  # 07:43 ráno (u nás)
+    - cron: '21 11 * * *' # 13:21 poobede (u nás)
+    - cron: '37 17 * * *' # 19:37 večer (u nás)
+
+# ZABRÁNI KONFLIKTOM: Nový stream automaticky vypne ten starý
+concurrency:
+  group: youtube-live
+  cancel-in-progress: true
 
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 360 
     permissions:
       contents: write
 
@@ -31,20 +39,19 @@ jobs:
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
           )
           
-          # VYLEPŠENÁ NÁHODA (Sekundy + Nanosekundy + Random)
           SEED=$(($(date +%s%N) + $RANDOM))
           INDEX=$(( $SEED % ${#VIDEOS[@]} ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
           echo "==========================================="
-          echo "🎬 AKTIVITA: STARTUJEM NOVY STREAM"
-          echo "🔢 VYBRANY INDEX: $INDEX"
+          echo "🎬 ŠTARTUJEM NOVÝ BLOK (ŠPINAVÝ ČAS)"
+          echo "🔢 VYBRANÝ INDEX: $INDEX"
           echo "🔗 URL: $SELECTED_URL"
           echo "==========================================="
           
           curl -L "$SELECTED_URL" -o "video_na_stream.mp4"
           
-          echo "✅ SUBOR STIAHNUTY. VELKOST:"
+          echo "✅ SÚBOR STIAHNUTÝ. VEĽKOSŤ:"
           du -sh video_na_stream.mp4
 
       - name: Streamovanie na YouTube
@@ -53,18 +60,18 @@ jobs:
         run: |
           ffmpeg -re -stream_loop -1 -i video_na_stream.mp4 \
           -c:v libx264 -preset veryfast -tune film \
-          -b:v 5000k -maxrate 5000k -bufsize 10000k \
+          -b:v 4500k -maxrate 5000k -bufsize 10000k \
           -pix_fmt yuv420p -g 60 -r 30 \
           -c:a aac -b:a 128k -ar 44100 \
           -f flv "rtmp://a.rtmp.youtube.com/live2/$YOUTUBE_KEY"
 
-      - name: Keep-alive
+      - name: Keep-alive (Zápis do logu)
         if: always()
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase
-          echo "Stream bežal: $(date)" > last_run.txt
+          echo "Posledný reštart streamu: $(date)" > last_run.txt
           git add last_run.txt
-          git commit -m "Log update" || exit 0
+          git commit -m "Log update $(date)" || exit 0
           git push origin main
