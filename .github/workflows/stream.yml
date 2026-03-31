@@ -3,10 +3,10 @@ name: YouTube Live 24/7 - Nature Mix
 on:
   workflow_dispatch:
   schedule:
-    - cron: '12 0 * * *'  # 02:12 ráno (náš čas)
-    - cron: '43 5 * * *'  # 07:43 ráno (náš čas)
-    - cron: '21 11 * * *' # 13:21 poobede (náš čas)
-    - cron: '37 17 * * *' # 19:37 večer (náš čas)
+    - cron: '10 0 * * *'  # 02:10 ráno
+    - cron: '40 5 * * *'  # 07:40 ráno
+    - cron: '20 11 * * *' # 13:20 poobede
+    - cron: '40 17 * * *' # 19:40 večer
 
 concurrency:
   group: youtube-live
@@ -15,7 +15,7 @@ concurrency:
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 340  # 5 hodín a 40 minút (nechávame 20 min voľno pre ďalší cron)
     permissions:
       contents: write
 
@@ -32,7 +32,6 @@ jobs:
         run: |
           rm -rf *.mp4
           
-          # Aktualizovaný zoznam s 5 videami
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
@@ -41,13 +40,11 @@ jobs:
             "https://www.dropbox.com/scl/fi/lgyuy8ybd8ug85p5umopl/summer-fire-and-crickets.mp4?rlkey=5531ok1c74hmowxej0cwjhdsi&raw=1"
           )
           
-          # Výpočet náhody
           COUNT=${#VIDEOS[@]}
           SEED=$(($(date +%s%N) + RANDOM))
           INDEX=$(( SEED % COUNT ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
-          # Logovanie názvu súboru
           FILENAME=$(echo "$SELECTED_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
           
           echo "==========================================="
@@ -60,8 +57,6 @@ jobs:
           
           echo "✅ SÚBOR STIAHNUTÝ. VEĽKOSŤ:"
           du -sh video_na_stream.mp4
-          
-          # Uloženie indexu pre neskorší zápis do logu
           echo "LAST_INDEX=$INDEX" >> $GITHUB_ENV
 
       - name: Streamovanie na YouTube
