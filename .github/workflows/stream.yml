@@ -3,10 +3,10 @@ name: YouTube Live 24/7 - Nature Mix
 on:
   workflow_dispatch:
   schedule:
-    - cron: '12 0 * * *'  # 02:12 ráno (u nás)
-    - cron: '43 5 * * *'  # 07:43 ráno (u nás)
-    - cron: '21 11 * * *' # 13:21 poobede (u nás)
-    - cron: '37 17 * * *' # 19:37 večer (u nás)
+    - cron: '12 0 * * *'  # 02:12 ráno (náš čas)
+    - cron: '43 5 * * *'  # 07:43 ráno (náš čas)
+    - cron: '21 11 * * *' # 13:21 poobede (náš čas)
+    - cron: '37 17 * * *' # 19:37 večer (náš čas)
 
 concurrency:
   group: youtube-live
@@ -32,22 +32,21 @@ jobs:
         run: |
           rm -rf *.mp4
           
-          # TU PRIDÁVAJ ĎALŠIE LINKY (nezabudni na raw=1)
+          # Čistý zoznam so 4 videami
           VIDEOS=(
             "https://www.dropbox.com/scl/fi/t8v82zwuj5oompgrb8voz/waterfall.mp4?rlkey=zo14mr99pihkc1px6b5o0dtl5&raw=1"
             "https://www.dropbox.com/scl/fi/kp8qyithsqs2nfonpp1gk/waterfall-stream.mp4?rlkey=caaon46glrb6amltbq8apdlr0&raw=1"
             "https://www.dropbox.com/scl/fi/yh84vqdx3ru1z8gbtet71/stream.mp4?rlkey=yfmjsn2j4wfp0o6q3c83bjbbh&raw=1"
             "https://www.dropbox.com/scl/fi/41dgp7s1to0ecavdwbhqv/cave.mp4?rlkey=g4oks0ycbejg2h2pnvjg2uymy&raw=1"
-            "TU_VLOZ_PIATE_VIDEO_RAW_1"
           )
           
-          # KOMPLEXNÁ NÁHODA
+          # Výpočet náhody
           COUNT=${#VIDEOS[@]}
-          SEED=$(($(date +%s%N) + RANDOM + SRANDOM))
+          SEED=$(($(date +%s%N) + RANDOM))
           INDEX=$(( SEED % COUNT ))
           SELECTED_URL=${VIDEOS[$INDEX]}
           
-          # EXTRAKCIA NÁZVU PRE LOG (len pre tvoj prehľad)
+          # Logovanie pre teba (uvidíš v GitHub Actions)
           FILENAME=$(echo "$SELECTED_URL" | sed -n 's|.*/\([^?]*\).*|\1|p')
           
           echo "==========================================="
@@ -58,8 +57,11 @@ jobs:
           
           curl -L "$SELECTED_URL" -o "video_na_stream.mp4"
           
-          echo "✅ HOTOVO. VEĽKOSŤ SÚBORU NA DISKU:"
+          echo "✅ SÚBOR STIAHNUTÝ. VEĽKOSŤ:"
           du -sh video_na_stream.mp4
+          
+          # Uloženie indexu pre neskorší zápis do logu
+          echo "LAST_INDEX=$INDEX" >> $GITHUB_ENV
 
       - name: Streamovanie na YouTube
         env:
@@ -79,7 +81,7 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase
           echo "Posledný reštart streamu: $(date)" > last_run.txt
-          echo "Hralo sa video index: $INDEX" >> last_run.txt
+          echo "Hralo sa video index: ${{ env.LAST_INDEX }}" >> last_run.txt
           git add last_run.txt
           git commit -m "Log update $(date)" || exit 0
           git push origin main
