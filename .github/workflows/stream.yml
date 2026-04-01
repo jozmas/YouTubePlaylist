@@ -8,6 +8,7 @@ on:
     - cron: '20 11 * * *' # 13:20 poobede
     - cron: '40 17 * * *' # 19:40 večer
 
+# Toto zabezpečí, že bežiaci stream sa vypne, keď má začať nový plánovaný čas
 concurrency:
   group: youtube-live
   cancel-in-progress: true
@@ -15,7 +16,7 @@ concurrency:
 jobs:
   stream:
     runs-on: ubuntu-latest
-    timeout-minutes: 340  # 5 hodín a 40 minút (nechávame 20 min voľno pre ďalší cron)
+    timeout-minutes: 340  # 5 hodín a 40 minút
     permissions:
       contents: write
 
