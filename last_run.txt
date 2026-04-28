@@ -1,2 +1,2 @@
-Posledný reštart streamu: Mon Apr 27 18:35:37 UTC 2026
-Hralo sa video index: 4
+Posledný reštart streamu: Tue Apr 28 00:34:28 UTC 2026
+Hralo sa video index: 0
