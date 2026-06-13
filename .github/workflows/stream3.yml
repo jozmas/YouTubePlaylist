@@ -62,7 +62,7 @@ jobs:
 
       - name: Transmission start
         env:
-          TARGET_KEY: ${{ secrets.YOUTUBE_STREAM_KEY }}
+          TARGET_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_3 }}
         run: |
           # Stream the video to YouTube on an infinite loop (-stream_loop -1)
           # Added -fflags +genpts to prevent YouTube from disconnecting when the video restarts
