@@ -30,21 +30,42 @@ jobs:
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg curl
 
-      - name: Resource allocation
+      - name: Resource allocation (Download from Dropbox)
         env:
           DROPBOX_URL: ${{ secrets.YT_WOTL_KEY }}
         run: |
           set +e
           rm -f data_stream.mp4 || true
-          curl -L "$DROPBOX_URL" -o "data_stream.mp4"
-          if [ ! -s "data_stream.mp4" ]; then exit 1; fi
+          
+          if [ -z "$DROPBOX_URL" ]; then echo "Error: YT_WOTL_KEY is empty"; exit 1; fi
+          
+          # Format Dropbox URL to force direct download instead of loading the web preview
+          DOWNLOAD_URL=$(echo "$DROPBOX_URL" | sed 's/dl=0/dl=1/g')
+          
+          echo "Downloading from: $DOWNLOAD_URL"
+          curl -L "$DOWNLOAD_URL" -o "data_stream.mp4"
+          
+          if [ ! -f "data_stream.mp4" ]; then 
+            echo "Download failed"
+            exit 1 
+          fi
+
+          # Verify it is not an HTML error page (Dropbox sometimes blocks automated requests if not formatted correctly)
+          FILE_SIZE=$(stat -c%s "data_stream.mp4")
+          if [ "$FILE_SIZE" -lt 10000 ]; then
+            echo "Error: Downloaded file is too small. Likely an HTML error page."
+            exit 1
+          fi
+
           set -e
 
       - name: Transmission start
         env:
           TARGET_KEY: ${{ secrets.YOUTUBE_STREAM_KEY_2 }}
         run: |
-          ffmpeg -nostdin -re -stream_loop -1 -i data_stream.mp4 \
+          # Stream the video to YouTube on an infinite loop (-stream_loop -1)
+          # Added -fflags +genpts to prevent YouTube from disconnecting when the video restarts
+          ffmpeg -nostdin -re -stream_loop -1 -fflags +genpts -i data_stream.mp4 \
           -map 0:v:0 -map 0:a:0 \
           -vf "scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,format=yuv420p" \
           -r 30 \
@@ -60,10 +81,10 @@ jobs:
       - name: System logging
         if: always()
         run: |
-          git config --global user.name "system-bot"
-          git config --global user.email "bot@internal.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase || true
-          echo "Sync State: $(date)" > system_log.txt
-          git add system_log.txt
-          git commit -m "sys-update: $(date)" || true
+          echo "Sync State WOTL: $(date)" > last_run_wotl.txt
+          git add last_run_wotl.txt
+          git commit -m "sys-update: $(date) [skip ci]" || true
           git push origin main || true
