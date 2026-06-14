@@ -1,4 +1,4 @@
-name: Global Media Streamer - RNS
+name: Global Media Streamer - Ravion
 
 on:
   workflow_dispatch:
