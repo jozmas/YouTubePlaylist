@@ -79,7 +79,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git pull origin main --rebase || true
-          echo "Sync Ravion: $(date)" > status-ravion.log
-          git add status-ravion.log
+          echo "Sync Ravion: $(date)" > last_run_ravion.txt
+          git add last_run_ravion.txt
           git commit -m "update Ravion $(date) [skip ci]" || true
           git push origin main || true
