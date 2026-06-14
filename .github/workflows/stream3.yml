@@ -3,10 +3,10 @@ name: Global Media Streamer - Ravion
 on:
   workflow_dispatch:
   schedule:
-    - cron: '10 0 * * *'
-    - cron: '40 5 * * *'
-    - cron: '20 11 * * *'
-    - cron: '40 17 * * *'
+    - cron: '10 2 * * *'
+    - cron: '40 7 * * *'
+    - cron: '20 13 * * *'
+    - cron: '40 19 * * *'
 
 concurrency:
   group: youtube-live
